@@ -352,13 +352,13 @@ function generateDungeon() {
 
   // Boss - dans la dernière salle (garde les escaliers)
   const lastRoom = rooms[rooms.length - 1];
-  // Placer le boss à côté du centre de la salle
-  const bossOffsets = [[1,0],[0,1],[-1,0],[0,-1],[1,1],[-1,-1]];
+  // Placer le boss autour du centre de la salle
+  const bossOffsets = [[1,0],[0,1],[-1,0],[0,-1],[1,1],[-1,1],[1,-1],[-1,-1],[2,0],[0,2],[-2,0],[0,-2]];
   let bossPlaced = false;
   for (const [bdx, bdy] of bossOffsets) {
     const bx = lastRoom.cx + bdx, by = lastRoom.cy + bdy;
-    if (bx > lastRoom.x && bx < lastRoom.x + lastRoom.w - 1 &&
-        by > lastRoom.y && by < lastRoom.y + lastRoom.h - 1 &&
+    if (bx >= lastRoom.x + 1 && bx <= lastRoom.x + lastRoom.w - 2 &&
+        by >= lastRoom.y + 1 && by <= lastRoom.y + lastRoom.h - 2 &&
         !(bx === player.x && by === player.y) &&
         !enemies.some(e => e.x === bx && e.y === by)) {
       enemies.push(createBoss(bx, by));
@@ -366,7 +366,7 @@ function generateDungeon() {
       break;
     }
   }
-  // Fallback: boss directement au centre si aucun offset libre
+  // Fallback: boss dans la salle (même position que les escaliers - les escaliers sont cachés tant que le boss vit)
   if (!bossPlaced) {
     enemies.push(createBoss(lastRoom.cx, lastRoom.cy));
   }
