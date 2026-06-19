@@ -58,6 +58,26 @@ body{background:#0a0a12;color:#ccc;font-family:'Courier New',monospace;display:f
 .shop-item.disabled:hover{border-color:#2a2a3a;background:#0f0f1a}
 #shop-close{display:block;margin:14px auto 0;background:#2a2a3a;border:1px solid #4a4a5a;color:#aaa;padding:6px 20px;border-radius:4px;cursor:pointer;font-family:inherit;font-size:12px}
 #shop-close:hover{background:#3a3a4a;color:#ddd}
+/* === INVENTORY OVERLAY === */
+#inv-overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.75);z-index:100;justify-content:center;align-items:center}
+#inv-overlay.open{display:flex}
+#inv-box{background:#1a1a28;border:2px solid #2a2a3a;border-radius:8px;padding:20px;min-width:380px;max-width:450px;max-height:70vh;display:flex;flex-direction:column;box-shadow:0 0 40px rgba(80,0,0,0.4)}
+#inv-box h2{color:#e4c874;text-align:center;font-size:16px;border-bottom:1px solid #2a2a3a;padding-bottom:10px;margin-bottom:12px}
+#inv-empty{text-align:center;color:#555;padding:30px 0;font-size:14px}
+#inv-list{display:flex;flex-direction:column;gap:5px;overflow-y:auto;flex:1}
+#inv-list::-webkit-scrollbar{width:5px}
+#inv-list::-webkit-scrollbar-track{background:#0f0f1a}
+#inv-list::-webkit-scrollbar-thumb{background:#2a2a3a;border-radius:3px}
+.inv-item{display:flex;align-items:center;gap:10px;background:#0f0f1a;border:1px solid #2a2a3a;border-radius:5px;padding:7px 12px;cursor:pointer;transition:all .15s}
+.inv-item:hover{border-color:#6a4a4a;background:#1a1428}
+.inv-item .ii-icon{font-size:18px;width:26px;text-align:center}
+.inv-item .ii-info{flex:1}
+.inv-item .ii-name{color:#ddd;font-size:13px}
+.inv-item .ii-count{color:#888;font-size:11px;margin-left:6px}
+.inv-item .ii-use{color:#e4c874;font-size:11px;min-width:40px;text-align:right}
+.inv-item .ii-empty{color:#555;font-size:11px}
+#inv-close{display:block;margin:12px auto 0;background:#2a2a3a;border:1px solid #4a4a5a;color:#aaa;padding:6px 20px;border-radius:4px;cursor:pointer;font-family:inherit;font-size:12px}
+#inv-close:hover{background:#3a3a4a;color:#ddd}
 </style>
 </head>
 <body>
@@ -72,6 +92,7 @@ body{background:#0a0a12;color:#ccc;font-family:'Courier New',monospace;display:f
       <div class="stat-row"><span class="stat-label">⭐ LVL</span><span class="stat-value lvl-val" id="stat-lvl">1</span></div>
       <div class="stat-row"><span class="stat-label">💰 OR</span><span class="stat-value gold-val" id="stat-gold">0</span></div>
       <div class="stat-row"><span class="stat-label">🏚 Étage</span><span class="stat-value floor-val" id="stat-floor">1</span></div>
+      <div class="stat-row"><span class="stat-label">🎒 Items</span><span class="stat-value" id="stat-items" style="color:#e4c874">0</span></div>
       <div class="stat-row"><span class="stat-label">💀 Ennemis</span><span class="stat-value" id="stat-enemies" style="color:#e74c3c">0</span></div>
       <div id="enemy-legend">
         <div class="legend-item"><span class="legend-dot dot-ruby">R</span> Ruby (Vous)</div>
@@ -82,7 +103,7 @@ body{background:#0a0a12;color:#ccc;font-family:'Courier New',monospace;display:f
     </div>
   </div>
   <div id="message-log"></div>
-  <div id="controls-hint">↑↓← → / WASD / Numpad : déplacer | Espace : attendre | E : marchand | R : recommencer</div>
+  <div id="controls-hint">↑↓← → / WASD / Numpad : déplacer | Espace : attendre | E : marchand | I : inventaire | R : recommencer</div>
 </div>
 
 <!-- Shop Overlay -->
@@ -92,6 +113,15 @@ body{background:#0a0a12;color:#ccc;font-family:'Courier New',monospace;display:f
     <div class="shop-merchant">"Psst! J'ai des articles de qualité pour un aventurier comme toi!"</div>
     <div id="shop-items"></div>
     <button id="shop-close">Fermer la boutique</button>
+  </div>
+</div>
+
+<!-- Inventory Overlay -->
+<div id="inv-overlay">
+  <div id="inv-box">
+    <h2>🎒 Inventaire</h2>
+    <div id="inv-list"></div>
+    <button id="inv-close">Fermer l'inventaire</button>
   </div>
 </div>
 
@@ -240,6 +270,7 @@ function generateDungeon() {
     atk: 3, def: 1,
     gold: 0,
     type: 'ruby',
+    inventory: [],
     buffAtk: 0, buffAtkTurns: 0,
     buffDef: 0, buffDefTurns: 0
   };
@@ -435,15 +466,13 @@ function openChest(chest) {
       break;
     }
     case 'potion': {
-      const heal = 10 + Math.floor(Math.random() * 6);
-      player.hp = Math.min(player.hp + heal, player.maxHp);
-      addMsg(`🧪 Potion de soin: +${heal} PV! (${player.hp}/${player.maxHp})`, 'heal');
+      addItemToInventory({ type: 'potion', name: 'Potion de soin', icon: '🧪' });
+      addMsg('🧪 Potion de soin → inventaire!', 'loot');
       break;
     }
     case 'strength': {
-      player.buffAtk += 3;
-      player.buffAtkTurns = 8;
-      addMsg(`💪 Potion de force: ATK+3 pour 8 tours!`, 'loot');
+      addItemToInventory({ type: 'strength', name: 'Potion de force', icon: '💪' });
+      addMsg('💪 Potion de force → inventaire!', 'loot');
       break;
     }
   }
@@ -898,29 +927,24 @@ function buyItem(item) {
 
   switch (item.id) {
     case 'potion':
-      player.hp = Math.min(player.hp + 10, player.maxHp);
-      addMsg(`🧪 Potion de soin: +10 PV! (${player.hp}/${player.maxHp})`, 'heal');
+      addItemToInventory({ type: 'potion', name: 'Potion de soin', icon: '🧪' });
+      addMsg('🧪 Potion de soin → inventaire!', 'loot');
       break;
     case 'bigpotion':
-      player.hp = Math.min(player.hp + 25, player.maxHp);
-      addMsg(`💉 Potion de soin +: +25 PV! (${player.hp}/${player.maxHp})`, 'heal');
+      addItemToInventory({ type: 'bigpotion', name: 'Potion de soin +', icon: '💉' });
+      addMsg('💉 Potion de soin + → inventaire!', 'loot');
       break;
     case 'strength':
-      player.buffAtk += 3;
-      player.buffAtkTurns = 8;
-      addMsg('💪 Force +3 pour 8 tours!', 'loot');
+      addItemToInventory({ type: 'strength', name: 'Potion de force', icon: '💪' });
+      addMsg('💪 Potion de force → inventaire!', 'loot');
       break;
     case 'defense':
-      player.buffDef += 2;
-      player.buffDefTurns = 8;
-      addMsg('🛡 Défense +2 pour 8 tours!', 'loot');
+      addItemToInventory({ type: 'defense', name: 'Potion de défense', icon: '🛡' });
+      addMsg('🛡 Potion de défense → inventaire!', 'loot');
       break;
     case 'elixir':
-      player.buffAtk += 2;
-      player.buffAtkTurns = 10;
-      player.buffDef += 1;
-      player.buffDefTurns = 10;
-      addMsg('✨ Élixir du héros: ATK+2 DEF+1 pour 10 tours!', 'loot');
+      addItemToInventory({ type: 'elixir', name: 'Élixir du héros', icon: '✨' });
+      addMsg('✨ Élixir du héros → inventaire!', 'loot');
       break;
     case 'map':
       for (let y = 0; y < MAP_H; y++)
@@ -930,8 +954,8 @@ function buyItem(item) {
       addMsg('🗺 Carte du donjon révélée!', 'info');
       break;
     case 'gem':
-      player.hp = player.maxHp;
-      addMsg(`💎 Gemme de soin: PV restaurés! (${player.hp}/${player.maxHp})`, 'heal');
+      addItemToInventory({ type: 'gem', name: 'Gemme de soin', icon: '💎' });
+      addMsg('💎 Gemme de soin → inventaire!', 'loot');
       break;
   }
   renderShop();
@@ -940,13 +964,115 @@ function buyItem(item) {
 }
 
 document.getElementById('shop-close').addEventListener('click', closeShop);
+document.getElementById('inv-close').addEventListener('click', closeInventory);
 
-// Fermer avec Échap
+// Fermer les overlays avec Échap
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape' && document.getElementById('shop-overlay').classList.contains('open')) {
-    closeShop();
+  if (e.key === 'Escape') {
+    if (document.getElementById('shop-overlay').classList.contains('open')) closeShop();
+    if (document.getElementById('inv-overlay').classList.contains('open')) closeInventory();
   }
 });
+
+// ============================================================
+//  INVENTORY FUNCTIONS
+// ============================================================
+function addItemToInventory(item) {
+  // Cherche un slot existant du même type (max 9 par stack)
+  const existing = player.inventory.find(s => s.type === item.type);
+  if (existing && existing.count < 9) {
+    existing.count++;
+  } else {
+    player.inventory.push({ type: item.type, name: item.name, icon: item.icon, count: 1 });
+  }
+}
+
+function useInventoryItem(idx) {
+  const slot = player.inventory[idx];
+  if (!slot) return;
+  const item = slot;
+
+  switch (item.type) {
+    case 'potion': {
+      const heal = 10 + Math.floor(Math.random() * 6);
+      player.hp = Math.min(player.hp + heal, player.maxHp);
+      addMsg(`🧪 ${item.name}: +${heal} PV! (${player.hp}/${player.maxHp})`, 'heal');
+      break;
+    }
+    case 'bigpotion': {
+      const heal = 20 + Math.floor(Math.random() * 6);
+      player.hp = Math.min(player.hp + heal, player.maxHp);
+      addMsg(`💉 ${item.name}: +${heal} PV! (${player.hp}/${player.maxHp})`, 'heal');
+      break;
+    }
+    case 'strength': {
+      player.buffAtk += 3;
+      player.buffAtkTurns = 8;
+      addMsg('💪 Force +3 pour 8 tours!', 'loot');
+      break;
+    }
+    case 'defense': {
+      player.buffDef += 2;
+      player.buffDefTurns = 8;
+      addMsg('🛡 Défense +2 pour 8 tours!', 'loot');
+      break;
+    }
+    case 'elixir': {
+      player.buffAtk += 2;
+      player.buffAtkTurns = 10;
+      player.buffDef += 1;
+      player.buffDefTurns = 10;
+      addMsg('✨ Élixir du héros: ATK+2 DEF+1 pour 10 tours!', 'loot');
+      break;
+    }
+    case 'gem': {
+      player.hp = player.maxHp;
+      addMsg(`💎 ${item.name}: PV restaurés! (${player.hp}/${player.maxHp})`, 'heal');
+      break;
+    }
+    default:
+      return;
+  }
+
+  // Consommer l'item
+  item.count--;
+  if (item.count <= 0) {
+    player.inventory.splice(idx, 1);
+  }
+  renderInventory();
+  updateUI();
+  render();
+}
+
+function openInventory() {
+  if (document.getElementById('shop-overlay').classList.contains('open')) return;
+  document.getElementById('inv-overlay').classList.add('open');
+  renderInventory();
+}
+
+function closeInventory() {
+  document.getElementById('inv-overlay').classList.remove('open');
+}
+
+function renderInventory() {
+  const container = document.getElementById('inv-list');
+  container.innerHTML = '';
+  if (!player.inventory || player.inventory.length === 0) {
+    container.innerHTML = '<div id="inv-empty">📭 Inventaire vide</div>';
+    return;
+  }
+  player.inventory.forEach((item, idx) => {
+    const div = document.createElement('div');
+    div.className = 'inv-item';
+    div.innerHTML = `
+      <span class="ii-icon">${item.icon}</span>
+      <span class="ii-info"><span class="ii-name">${item.name}</span><span class="ii-count">x${item.count}</span></span>
+      <span class="ii-use">Utiliser</span>
+    `;
+    div.addEventListener('click', () => useInventoryItem(idx));
+    container.appendChild(div);
+  });
+}
 
 // ============================================================
 //  UI UPDATE
@@ -962,6 +1088,7 @@ function updateUI() {
   document.getElementById('stat-lvl').textContent = `${level} (${xp}/${xpNext} XP)`;
   document.getElementById('stat-gold').textContent = player.gold;
   document.getElementById('stat-floor').textContent = floor;
+  document.getElementById('stat-items').textContent = player.inventory.reduce((sum, s) => sum + s.count, 0);
   document.getElementById('stat-enemies').textContent = getHostiles().length;
 }
 
@@ -1005,6 +1132,7 @@ document.addEventListener('keydown', (e) => {
   // Marchand - ouvrir boutique (E)
   if (key === 'e' || key === 'E') {
     if (document.getElementById('shop-overlay').classList.contains('open')) { closeShop(); return; }
+    if (document.getElementById('inv-overlay').classList.contains('open')) { closeInventory(); return; }
     const near = enemies.find(e => e.merchant &&
       Math.abs(e.x - player.x) + Math.abs(e.y - player.y) <= 1);
     if (near) {
@@ -1012,6 +1140,14 @@ document.addEventListener('keydown', (e) => {
     } else {
       addMsg('❌ Aucun marchand à proximité.', 'warning');
     }
+    return;
+  }
+
+  // Inventaire (I)
+  if (key === 'i' || key === 'I') {
+    if (document.getElementById('inv-overlay').classList.contains('open')) { closeInventory(); return; }
+    if (gameOver || gameWon) return;
+    openInventory();
     return;
   }
 
@@ -1035,6 +1171,7 @@ function resetGame() {
   turnCount = 0;
   floor = 1;
   level = 1; xp = 0; xpNext = 5;
+  shopBought = {};
   generateDungeon();
   computeFOV();
   updateUI();
