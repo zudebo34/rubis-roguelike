@@ -668,17 +668,20 @@ function moveEnemies() {
     // Marchands Lua - ne bougent pas
     if (e.merchant && !e.wandering) continue;
 
-    // Marchand ambulant C# - se déplace aléatoirement
+    // Marchand ambulant C# - se déplace aléatoirement, mais reste si le joueur est proche
     if (e.wandering) {
-      const dirs = [[1,0],[-1,0],[0,1],[0,-1]];
-      const shuffled = dirs.sort(() => Math.random() - 0.5);
-      for (const [ddx, ddy] of shuffled) {
-        const nx = e.x + ddx, ny = e.y + ddy;
-        if (nx >= 0 && nx < MAP_W && ny >= 0 && ny < MAP_H &&
-            map[ny][nx] !== T_WALL &&
-            !enemies.some(oe => oe !== e && oe.x === nx && oe.y === ny && oe.hp > 0) &&
-            !(nx === player.x && ny === player.y)) {
-          e.x = nx; e.y = ny; break;
+      const dist = Math.abs(e.x - player.x) + Math.abs(e.y - player.y);
+      if (dist > 2) {
+        const dirs = [[1,0],[-1,0],[0,1],[0,-1]];
+        const shuffled = dirs.sort(() => Math.random() - 0.5);
+        for (const [ddx, ddy] of shuffled) {
+          const nx = e.x + ddx, ny = e.y + ddy;
+          if (nx >= 0 && nx < MAP_W && ny >= 0 && ny < MAP_H &&
+              map[ny][nx] !== T_WALL &&
+              !enemies.some(oe => oe !== e && oe.x === nx && oe.y === ny && oe.hp > 0) &&
+              !(nx === player.x && ny === player.y)) {
+            e.x = nx; e.y = ny; break;
+          }
         }
       }
       continue;
