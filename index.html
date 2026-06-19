@@ -657,13 +657,6 @@ function moveEnemies() {
       // JS: aggro range (sauf le boss - il fonce)
       if (e.type === 'js' && !e.isBoss) {
         if (dist > (e.aggroRange || 5)) continue;
-        // JS essaie de garder une distance de 2-3
-        if (dist <= 2) {
-          // Fuir
-          const dx = e.x - player.x, dy = e.y - player.y;
-          const fx = e.x + Math.sign(dx), fy = e.y + Math.sign(dy);
-          if (canMoveTo(fx, fy)) { e.x = fx; e.y = fy; continue; }
-        }
       }
 
       // Éveil si le joueur est proche
