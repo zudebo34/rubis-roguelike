@@ -78,6 +78,20 @@ body{background:#0a0a12;color:#ccc;font-family:'Courier New',monospace;display:f
 .inv-item .ii-empty{color:#555;font-size:11px}
 #inv-close{display:block;margin:12px auto 0;background:#2a2a3a;border:1px solid #4a4a5a;color:#aaa;padding:6px 20px;border-radius:4px;cursor:pointer;font-family:inherit;font-size:12px}
 #inv-close:hover{background:#3a3a4a;color:#ddd}
+/* === CHEAT OVERLAY === */
+#cheat-overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);z-index:110;justify-content:center;align-items:center}
+#cheat-overlay.open{display:flex}
+#cheat-box{background:#1a1a28;border:2px solid #8a2a2a;border-radius:8px;padding:20px;min-width:400px;max-width:500px;box-shadow:0 0 40px rgba(200,0,0,0.3)}
+#cheat-box h2{color:#e74c3c;text-align:center;font-size:16px;border-bottom:1px solid #3a1a1a;padding-bottom:10px;margin-bottom:12px}
+#cheat-box .cheat-note{text-align:center;color:#666;font-size:11px;margin-bottom:12px}
+#cheat-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.cheat-btn{display:flex;align-items:center;gap:8px;background:#0f0f1a;border:1px solid #2a2a2a;border-radius:5px;padding:8px 10px;cursor:pointer;transition:all .15s;color:#ccc;font-family:inherit;font-size:12px;text-align:left}
+.cheat-btn:hover{border-color:#8a2a2a;background:#1a0f0f}
+.cheat-btn .cb-icon{font-size:16px;width:22px;text-align:center}
+.cheat-btn .cb-label{flex:1}
+.cheat-btn .cb-key{color:#555;font-size:10px;min-width:18px;text-align:right}
+#cheat-close{display:block;margin:14px auto 0;background:#2a1a1a;border:1px solid #4a2a2a;color:#a44;padding:6px 20px;border-radius:4px;cursor:pointer;font-family:inherit;font-size:12px}
+#cheat-close:hover{background:#3a1a1a;color:#c66}
 </style>
 </head>
 <body>
@@ -104,7 +118,7 @@ body{background:#0a0a12;color:#ccc;font-family:'Courier New',monospace;display:f
     </div>
   </div>
   <div id="message-log"></div>
-  <div id="controls-hint">↑↓← → / WASD / Numpad : déplacer | Espace : attendre | E : marchand | I : inventaire | R : recommencer</div>
+  <div id="controls-hint">↑↓← → / WASD / Numpad : déplacer | Espace : attendre | E : marchand | I : inventaire | C : cheat | R : recommencer</div>
 </div>
 
 <!-- Shop Overlay -->
@@ -123,6 +137,16 @@ body{background:#0a0a12;color:#ccc;font-family:'Courier New',monospace;display:f
     <h2>🎒 Inventaire</h2>
     <div id="inv-list"></div>
     <button id="inv-close">Fermer l'inventaire</button>
+  </div>
+</div>
+
+<!-- Cheat Overlay -->
+<div id="cheat-overlay">
+  <div id="cheat-box">
+    <h2>⚡ CHEAT MENU</h2>
+    <div class="cheat-note">— Réservé aux développeurs —</div>
+    <div id="cheat-grid"></div>
+    <button id="cheat-close">Fermer</button>
   </div>
 </div>
 
@@ -1197,6 +1221,7 @@ document.getElementById('inv-close').addEventListener('click', closeInventory);
 // Fermer les overlays avec Échap
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
+    if (document.getElementById('cheat-overlay').classList.contains('open')) closeCheatMenu();
     if (document.getElementById('shop-overlay').classList.contains('open')) closeShop();
     if (document.getElementById('inv-overlay').classList.contains('open')) closeInventory();
   }
@@ -1326,6 +1351,50 @@ function renderInventory() {
 }
 
 // ============================================================
+//  CHEAT MENU
+// ============================================================
+const CHEATS = [
+  { id: 'heal',     icon: '❤', label: 'Soin complet', key: '1', action: () => { player.hp = player.maxHp; addMsg('❤ Cheat: Soin complet!', 'heal'); }},
+  { id: 'gold',     icon: '💰', label: '+100 Or',     key: '2', action: () => { player.gold += 100; addMsg('💰 Cheat: +100 Or!', 'loot'); }},
+  { id: 'level',    icon: '⭐', label: '+1 Niveau',    key: '3', action: () => { gainXp(9999); addMsg('⭐ Cheat: Niveau supérieur!', 'info'); }},
+  { id: 'map',      icon: '🗺', label: 'Carte complète', key: '4', action: () => { for (let y = 0; y < MAP_H; y++) for (let x = 0; x < MAP_W; x++) explored[y][x] = true; computeFOV(); addMsg('🗺 Cheat: Donjon révélé!', 'info'); }},
+  { id: 'atk',      icon: '⚔', label: 'ATK +1',       key: '5', action: () => { player.atk += 1; addMsg('⚔ Cheat: ATK +1!', 'loot'); }},
+  { id: 'def',      icon: '🛡', label: 'DEF +1',       key: '6', action: () => { player.def += 1; addMsg('🛡 Cheat: DEF +1!', 'heal'); }},
+  { id: 'killall',  icon: '☠', label: 'Tuer ennemis (sauf boss)', key: '7', action: () => { const toKill = enemies.filter(e => !e.merchant && !e.isBoss); for (const e of toKill) { const idx = enemies.indexOf(e); if (idx !== -1) enemies.splice(idx, 1); } addMsg('☠ Cheat: Ennemis ordinaires éliminés!', 'combat'); }},
+  { id: 'stairs',   icon: '🚪', label: 'Aux escaliers',key: '8', action: () => { if (stairs) { player.x = stairs.x; player.y = stairs.y; addMsg('🚪 Cheat: Téléporté aux escaliers!', 'info'); } }},
+];
+
+function openCheatMenu() {
+  if (document.getElementById('shop-overlay').classList.contains('open')) return;
+  if (document.getElementById('inv-overlay').classList.contains('open')) return;
+  document.getElementById('cheat-overlay').classList.add('open');
+  renderCheatMenu();
+}
+
+function closeCheatMenu() {
+  document.getElementById('cheat-overlay').classList.remove('open');
+}
+
+function renderCheatMenu() {
+  const grid = document.getElementById('cheat-grid');
+  grid.innerHTML = '';
+  for (const c of CHEATS) {
+    const btn = document.createElement('div');
+    btn.className = 'cheat-btn';
+    btn.innerHTML = `<span class="cb-icon">${c.icon}</span><span class="cb-label">${c.label}</span><span class="cb-key">${c.key}</span>`;
+    btn.addEventListener('click', () => {
+      c.action();
+      updateUI();
+      render();
+      closeCheatMenu();
+    });
+    grid.appendChild(btn);
+  }
+}
+
+document.getElementById('cheat-close').addEventListener('click', closeCheatMenu);
+
+// ============================================================
 //  UI UPDATE
 // ============================================================
 function updateUI() {
@@ -1408,6 +1477,25 @@ document.addEventListener('keydown', (e) => {
     if (gameOver || gameWon) return;
     openInventory();
     return;
+  }
+
+  // Cheat menu (C) - même en game over
+  if (key === 'c' || key === 'C') {
+    if (document.getElementById('cheat-overlay').classList.contains('open')) { closeCheatMenu(); return; }
+    openCheatMenu();
+    return;
+  }
+
+  // Raccourcis cheat menu (1-8) quand le cheat menu est ouvert
+  if (document.getElementById('cheat-overlay').classList.contains('open')) {
+    const cheat = CHEATS.find(c => c.key === key);
+    if (cheat) {
+      cheat.action();
+      updateUI();
+      render();
+      closeCheatMenu();
+      return;
+    }
   }
 
   const dir = keyMap[key];
