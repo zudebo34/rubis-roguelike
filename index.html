@@ -149,6 +149,15 @@ const SHOP_ITEMS = [
   { id: 'elixir',    icon: '✨', name: 'Élixir du héros',    desc: 'ATK+2 DEF+1 (10 tours)',  price: 35 },
   { id: 'map',       icon: '🗺', name: 'Carte du donjon',    desc: 'Révèle tout l\'étage',    price: 30 },
   { id: 'gem',       icon: '💎', name: 'Gemme de soin',      desc: 'Restaure TOUS les PV',    price: 50 },
+  // Équipement (permanent)
+  { id: 'sword_iron',    icon: '⚔', name: 'Épée en fer',       desc: 'ATK +1 permanent',  price: 30,  equip: 'sword', atkBonus: 1 },
+  { id: 'sword_steel',   icon: '⚔', name: 'Épée en acier',     desc: 'ATK +2 permanent',  price: 60,  equip: 'sword', atkBonus: 2 },
+  { id: 'sword_mythril', icon: '⚔', name: 'Épée en mythril',   desc: 'ATK +3 permanent',  price: 100, equip: 'sword', atkBonus: 3 },
+  { id: 'sword_legend',  icon: '⚔', name: 'Épée légendaire',   desc: 'ATK +5 permanent',  price: 180, equip: 'sword', atkBonus: 5 },
+  { id: 'armor_leather', icon: '🛡', name: 'Armure en cuir',    desc: 'DEF +1 permanent',  price: 25,  equip: 'armor', defBonus: 1 },
+  { id: 'armor_iron',    icon: '🛡', name: 'Armure en fer',     desc: 'DEF +2 permanent',  price: 55,  equip: 'armor', defBonus: 2 },
+  { id: 'armor_steel',   icon: '🛡', name: 'Armure en acier',   desc: 'DEF +3 permanent',  price: 90,  equip: 'armor', defBonus: 3 },
+  { id: 'armor_legend',  icon: '🛡', name: 'Armure légendaire', desc: 'DEF +5 permanent',  price: 160, equip: 'armor', defBonus: 5 },
 ];
 
 // ============================================================
@@ -271,6 +280,8 @@ function generateDungeon() {
     x: spawnRoom.cx, y: spawnRoom.cy,
     hp: 30, maxHp: 30,
     atk: 3, def: 1,
+    swordAtk: 0, armorDef: 0,
+    swordName: null, armorName: null,
     gold: 0,
     type: 'ruby',
     inventory: [],
@@ -317,7 +328,17 @@ function generateDungeon() {
       { type: 'gold', min: 5, max: 20 },
       { type: 'potion', min: 1, max: 1 },
       { type: 'strength', min: 1, max: 1 },
+      { type: 'gold', min: 10, max: 40 },
+      { type: 'sword_iron', equip: 'sword', atkBonus: 1, name: 'Épée en fer' },
+      { type: 'armor_leather', equip: 'armor', defBonus: 1, name: 'Armure en cuir' },
     ];
+    // Équipement plus rare sur les étages avancés
+    if (floor >= 8) rewards.push({ type: 'sword_steel', equip: 'sword', atkBonus: 2, name: 'Épée en acier' });
+    if (floor >= 8) rewards.push({ type: 'armor_iron', equip: 'armor', defBonus: 2, name: 'Armure en fer' });
+    if (floor >= 15) rewards.push({ type: 'sword_mythril', equip: 'sword', atkBonus: 3, name: 'Épée en mythril' });
+    if (floor >= 15) rewards.push({ type: 'armor_steel', equip: 'armor', defBonus: 3, name: 'Armure en acier' });
+    if (floor >= 20) rewards.push({ type: 'sword_legend', equip: 'sword', atkBonus: 5, name: 'Épée légendaire' });
+    if (floor >= 20) rewards.push({ type: 'armor_legend', equip: 'armor', defBonus: 5, name: 'Armure légendaire' });
     const reward = rewards[Math.floor(Math.random() * rewards.length)];
     chests.push({ x: cx, y: cy, opened: false, reward });
   }
@@ -427,7 +448,7 @@ function computeFOV() {
 //  COMBAT
 // ============================================================
 function attackEnemy(enemy) {
-  const dmg = Math.max(1, player.atk + player.buffAtk - enemy.def + Math.floor(Math.random() * 3));
+  const dmg = Math.max(1, player.atk + player.buffAtk + player.swordAtk - enemy.def + Math.floor(Math.random() * 3));
   enemy.hp -= dmg;
   addMsg(`⚔ Vous frappez ${enemy.label} pour ${dmg} dégâts! (PV: ${Math.max(0, enemy.hp)}/${enemy.maxHp})`, 'combat');
   if (enemy.hp <= 0) {
@@ -446,7 +467,7 @@ function attackEnemy(enemy) {
 }
 
 function attackPlayer(enemy) {
-  const dmg = Math.max(1, enemy.atk - (player.def + player.buffDef) + Math.floor(Math.random() * 2));
+  const dmg = Math.max(1, enemy.atk - (player.def + player.buffDef + player.armorDef) + Math.floor(Math.random() * 2));
   player.hp -= dmg;
   addMsg(`💥 ${enemy.label} vous frappe pour ${dmg} dégâts!`, 'combat');
   if (player.hp <= 0) {
@@ -495,6 +516,32 @@ function openChest(chest) {
     case 'strength': {
       addItemToInventory({ type: 'strength', name: 'Potion de force', icon: '💪' });
       addMsg('💪 Potion de force → inventaire!', 'loot');
+      break;
+    }
+    case 'sword_iron':
+    case 'sword_steel':
+    case 'sword_mythril':
+    case 'sword_legend': {
+      if (r.atkBonus <= player.swordAtk) {
+        addMsg(`⚔ Coffre: ${r.name} (pas mieux que votre épée actuelle, laissez tomber)`, 'info');
+      } else {
+        player.swordAtk = r.atkBonus;
+        player.swordName = r.name;
+        addMsg(`⚔ Coffre: ${r.name}! ATK +${r.atkBonus} permanent!`, 'loot');
+      }
+      break;
+    }
+    case 'armor_leather':
+    case 'armor_iron':
+    case 'armor_steel':
+    case 'armor_legend': {
+      if (r.defBonus <= player.armorDef) {
+        addMsg(`🛡 Coffre: ${r.name} (pas mieux que votre armure actuelle, laissez tomber)`, 'info');
+      } else {
+        player.armorDef = r.defBonus;
+        player.armorName = r.name;
+        addMsg(`🛡 Coffre: ${r.name}! DEF +${r.defBonus} permanent!`, 'heal');
+      }
       break;
     }
   }
@@ -948,7 +995,32 @@ function renderShop() {
     const div = document.createElement('div');
     const bought = shopBought[item.id] || 0;
     const canAfford = player.gold >= item.price;
-    const disabled = bought >= 3; // max 3 du même article
+
+    let disabled = false;
+    let statusHtml = '';
+
+    if (item.equip) {
+      // Équipement
+      const currentBonus = item.equip === 'sword' ? player.swordAtk : player.armorDef;
+      const itemBonus = item.atkBonus || item.defBonus || 0;
+      const alreadyHas = (item.equip === 'sword' && player.swordName === item.name) ||
+                        (item.equip === 'armor' && player.armorName === item.name);
+      const isUpgrade = itemBonus > currentBonus;
+      if (alreadyHas) {
+        disabled = true;
+        statusHtml = '<span class="item-bought">✔ Équipé</span>';
+      } else if (!isUpgrade && currentBonus > 0) {
+        disabled = true;
+        statusHtml = '<span class="item-bought" style="color:#555">⊘ Inférieur</span>';
+      } else {
+        statusHtml = `<span class="item-price">${item.price}💰</span>`;
+      }
+    } else {
+      // Consommable
+      disabled = bought >= 3;
+      statusHtml = disabled ? '<span class="item-bought">✔ Acheté</span>' : `<span class="item-price">${item.price}💰</span>`;
+    }
+
     div.className = 'shop-item' + (disabled ? ' disabled' : '');
 
     div.innerHTML = `
@@ -957,7 +1029,7 @@ function renderShop() {
         <div class="item-name">${item.name}</div>
         <div class="item-desc">${item.desc}</div>
       </div>
-      ${disabled ? '<span class="item-bought">✔ Acheté</span>' : `<span class="item-price">${item.price}💰</span>`}
+      ${statusHtml}
     `;
 
     if (!disabled) {
@@ -973,6 +1045,32 @@ function buyItem(item) {
     addMsg('❌ Pas assez d\'or!', 'warning');
     return;
   }
+
+  // Équipement
+  if (item.equip) {
+    const itemBonus = item.atkBonus || item.defBonus || 0;
+    const currentBonus = item.equip === 'sword' ? player.swordAtk : player.armorDef;
+    if (itemBonus <= currentBonus) {
+      addMsg('⚠ Vous avez déjà un équipement équivalent ou supérieur!', 'warning');
+      return;
+    }
+    player.gold -= item.price;
+    if (item.equip === 'sword') {
+      player.swordAtk = item.atkBonus;
+      player.swordName = item.name;
+      addMsg(`⚔ ${item.name} équipée! ATK +${item.atkBonus} permanent!`, 'loot');
+    } else {
+      player.armorDef = item.defBonus;
+      player.armorName = item.name;
+      addMsg(`🛡 ${item.name} équipée! DEF +${item.defBonus} permanent!`, 'heal');
+    }
+    renderShop();
+    updateUI();
+    render();
+    return;
+  }
+
+  // Consommable
   const bought = shopBought[item.id] || 0;
   if (bought >= 3) return;
 
@@ -1111,8 +1209,22 @@ function closeInventory() {
 function renderInventory() {
   const container = document.getElementById('inv-list');
   container.innerHTML = '';
+
+  // Section équipement
+  if (player.swordName || player.armorName) {
+    const equipSection = document.createElement('div');
+    equipSection.style.cssText = 'border-bottom:1px solid #2a2a3a;padding-bottom:8px;margin-bottom:8px';
+    if (player.swordName) {
+      equipSection.innerHTML += `<div style="display:flex;align-items:center;gap:8px;padding:4px 6px;font-size:13px"><span>⚔</span><span style="color:#f0a030">${player.swordName}</span><span style="color:#888;font-size:11px">ATK +${player.swordAtk}</span></div>`;
+    }
+    if (player.armorName) {
+      equipSection.innerHTML += `<div style="display:flex;align-items:center;gap:8px;padding:4px 6px;font-size:13px"><span>🛡</span><span style="color:#5dade2">${player.armorName}</span><span style="color:#888;font-size:11px">DEF +${player.armorDef}</span></div>`;
+    }
+    container.appendChild(equipSection);
+  }
+
   if (!player.inventory || player.inventory.length === 0) {
-    container.innerHTML = '<div id="inv-empty">📭 Inventaire vide</div>';
+    container.innerHTML += '<div id="inv-empty">📭 Inventaire vide</div>';
     return;
   }
   player.inventory.forEach((item, idx) => {
@@ -1133,12 +1245,20 @@ function renderInventory() {
 // ============================================================
 function updateUI() {
   document.getElementById('stat-hp').textContent = `${player.hp}/${player.maxHp}`;
-  const totalAtk = player.atk + player.buffAtk;
-  const totalDef = player.def + player.buffDef;
-  document.getElementById('stat-atk').textContent = totalAtk + (player.buffAtk > 0 ? ` (+${player.buffAtk})` : '');
-  document.getElementById('stat-def').textContent = totalDef + (player.buffDef > 0 ? ` (+${player.buffDef})` : '');
-  document.getElementById('stat-def').style.color = player.buffDef > 0 ? '#5dade2' : '#3498db';
-  document.getElementById('stat-atk').style.color = player.buffAtk > 0 ? '#f0a030' : '#e67e22';
+  const baseAtk = player.atk + player.buffAtk;
+  const baseDef = player.def + player.buffDef;
+  const showAtk = baseAtk + player.swordAtk;
+  const showDef = baseDef + player.armorDef;
+  let atkStr = String(showAtk);
+  if (player.swordAtk > 0) atkStr += ` [+${player.swordAtk}⚔]`;
+  if (player.buffAtk > 0) atkStr += ` (buff +${player.buffAtk})`;
+  let defStr = String(showDef);
+  if (player.armorDef > 0) defStr += ` [+${player.armorDef}🛡]`;
+  if (player.buffDef > 0) defStr += ` (buff +${player.buffDef})`;
+  document.getElementById('stat-atk').textContent = atkStr;
+  document.getElementById('stat-def').textContent = defStr;
+  document.getElementById('stat-def').style.color = player.armorDef > 0 ? '#5dade2' : (player.buffDef > 0 ? '#5dade2' : '#3498db');
+  document.getElementById('stat-atk').style.color = player.swordAtk > 0 ? '#f0a030' : (player.buffAtk > 0 ? '#f0a030' : '#e67e22');
   document.getElementById('stat-lvl').textContent = `${level} (${xp}/${xpNext} XP)`;
   document.getElementById('stat-gold').textContent = player.gold;
   document.getElementById('stat-floor').textContent = floor + '/' + MAX_FLOOR;
