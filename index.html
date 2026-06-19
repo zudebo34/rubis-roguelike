@@ -1,0 +1,1068 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>⚔ Code Dungeon - Roguelike</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a0a12;color:#ccc;font-family:'Courier New',monospace;display:flex;justify-content:center;align-items:center;min-height:100vh;overflow:hidden}
+#game-wrapper{display:flex;flex-direction:column;gap:8px;padding:10px;background:#14141f;border-radius:8px;border:2px solid #2a2a3a}
+#top-section{display:flex;gap:8px}
+#game-canvas{border:2px solid #2a2a3a;border-radius:4px;image-rendering:pixelated;cursor:default;background:#111}
+#sidebar{width:220px;background:#1a1a28;border:2px solid #2a2a3a;border-radius:4px;padding:12px;font-size:13px;display:flex;flex-direction:column;gap:8px}
+#sidebar h2{color:#e4c874;font-size:15px;text-align:center;border-bottom:1px solid #2a2a3a;padding-bottom:6px;margin-bottom:4px;letter-spacing:1px}
+.stat-row{display:flex;justify-content:space-between;padding:3px 6px;background:#0f0f1a;border-radius:3px}
+.stat-label{color:#888}
+.stat-value{font-weight:bold}
+.hp-val{color:#e74c3c}
+.atk-val{color:#e67e22}
+.def-val{color:#3498db}
+.lvl-val{color:#e4c874}
+.gold-val{color:#f1c40f}
+.floor-val{color:#2ecc71}
+#enemy-legend{margin-top:6px;border-top:1px solid #2a2a3a;padding-top:6px}
+#enemy-legend .legend-item{display:flex;align-items:center;gap:6px;padding:2px 4px;font-size:12px;color:#aaa}
+.legend-dot{width:14px;height:14px;border-radius:3px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:7px;color:#fff}
+.dot-ruby{background:#CC342D}
+.dot-rust{background:#555;color:#aaa}
+.dot-lua{background:#000080}
+.dot-js{background:#d4a017}
+#message-log{width:100%;height:90px;background:#0f0f1a;border:2px solid #2a2a3a;border-radius:4px;padding:6px 10px;overflow-y:auto;font-size:12px;line-height:1.5;scroll-behavior:smooth}
+#message-log::-webkit-scrollbar{width:5px}
+#message-log::-webkit-scrollbar-track{background:#0f0f1a}
+#message-log::-webkit-scrollbar-thumb{background:#2a2a3a;border-radius:3px}
+.msg{color:#aaa;border-bottom:1px solid #191928;padding:1px 0}
+.msg-combat{color:#e74c3c}
+.msg-loot{color:#f1c40f}
+.msg-info{color:#3498db}
+.msg-heal{color:#2ecc71}
+.msg-warning{color:#e67e22}
+#controls-hint{font-size:11px;color:#555;text-align:center;padding:2px}
+/* === SHOP OVERLAY === */
+#shop-overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.75);z-index:100;justify-content:center;align-items:center}
+#shop-overlay.open{display:flex}
+#shop-box{background:#1a1a28;border:2px solid #2a2a3a;border-radius:8px;padding:20px;min-width:380px;max-width:450px;box-shadow:0 0 40px rgba(0,0,80,0.4)}
+#shop-box h2{color:#e4c874;text-align:center;font-size:16px;border-bottom:1px solid #2a2a3a;padding-bottom:10px;margin-bottom:12px}
+#shop-box .shop-merchant{text-align:center;font-size:12px;color:#888;margin-bottom:12px}
+#shop-items{display:flex;flex-direction:column;gap:6px}
+.shop-item{display:flex;align-items:center;gap:10px;background:#0f0f1a;border:1px solid #2a2a3a;border-radius:5px;padding:8px 12px;cursor:pointer;transition:all .15s}
+.shop-item:hover{border-color:#4a4a6a;background:#141428}
+.shop-item .item-icon{font-size:20px;width:30px;text-align:center}
+.shop-item .item-info{flex:1}
+.shop-item .item-name{color:#ddd;font-size:13px;font-weight:bold}
+.shop-item .item-desc{color:#888;font-size:11px}
+.shop-item .item-price{color:#f1c40f;font-size:13px;font-weight:bold;min-width:60px;text-align:right}
+.shop-item .item-bought{color:#2ecc71;font-size:12px;min-width:60px;text-align:right}
+.shop-item.disabled{opacity:0.4;cursor:not-allowed}
+.shop-item.disabled:hover{border-color:#2a2a3a;background:#0f0f1a}
+#shop-close{display:block;margin:14px auto 0;background:#2a2a3a;border:1px solid #4a4a5a;color:#aaa;padding:6px 20px;border-radius:4px;cursor:pointer;font-family:inherit;font-size:12px}
+#shop-close:hover{background:#3a3a4a;color:#ddd}
+</style>
+</head>
+<body>
+<div id="game-wrapper">
+  <div id="top-section">
+    <canvas id="game-canvas" width="800" height="640"></canvas>
+    <div id="sidebar">
+      <h2>⚔ CODE DUNGEON</h2>
+      <div class="stat-row"><span class="stat-label">❤ HP</span><span class="stat-value hp-val" id="stat-hp">30/30</span></div>
+      <div class="stat-row"><span class="stat-label">⚔ ATK</span><span class="stat-value atk-val" id="stat-atk">3</span></div>
+      <div class="stat-row"><span class="stat-label">🛡 DEF</span><span class="stat-value def-val" id="stat-def">1</span></div>
+      <div class="stat-row"><span class="stat-label">⭐ LVL</span><span class="stat-value lvl-val" id="stat-lvl">1</span></div>
+      <div class="stat-row"><span class="stat-label">💰 OR</span><span class="stat-value gold-val" id="stat-gold">0</span></div>
+      <div class="stat-row"><span class="stat-label">🏚 Étage</span><span class="stat-value floor-val" id="stat-floor">1</span></div>
+      <div class="stat-row"><span class="stat-label">💀 Ennemis</span><span class="stat-value" id="stat-enemies" style="color:#e74c3c">0</span></div>
+      <div id="enemy-legend">
+        <div class="legend-item"><span class="legend-dot dot-ruby">R</span> Ruby (Vous)</div>
+        <div class="legend-item"><span class="legend-dot dot-rust">R</span> Rust - Tank</div>
+        <div class="legend-item"><span class="legend-dot dot-js">J</span> JS - Stratège</div>
+        <div class="legend-item"><span class="legend-dot" style="background:#2ecc71">$</span> Lua - Marchand 🏪</div>
+      </div>
+    </div>
+  </div>
+  <div id="message-log"></div>
+  <div id="controls-hint">↑↓← → / WASD / Numpad : déplacer | Espace : attendre | E : marchand | R : recommencer</div>
+</div>
+
+<!-- Shop Overlay -->
+<div id="shop-overlay">
+  <div id="shop-box">
+    <h2>🏪 Boutique Lua</h2>
+    <div class="shop-merchant">"Psst! J'ai des articles de qualité pour un aventurier comme toi!"</div>
+    <div id="shop-items"></div>
+    <button id="shop-close">Fermer la boutique</button>
+  </div>
+</div>
+
+<script>
+// ============================================================
+//  SVG LOGOS - Encodés en data URI pour le rendu canvas
+// ============================================================
+const SVGS = {
+  ruby: `<svg fill="#CC342D" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20.156.083c3.033.525 3.893 2.598 3.829 4.77L24 4.822 22.635 22.71 4.89 23.926h.016C3.433 23.864.15 23.729 0 19.139l1.645-3 2.819 6.586.503 1.172 2.805-9.144-.03.007.016-.03 9.255 2.956-1.396-5.431-.99-3.9 8.82-.569-.615-.51L16.5 2.114 20.159.073l-.003.01zM0 19.089zM5.13 5.073c3.561-3.533 8.157-5.621 9.922-3.84 1.762 1.777-.105 6.105-3.673 9.636-3.563 3.532-8.103 5.734-9.864 3.957-1.766-1.777.045-6.217 3.612-9.75l.003-.003z"/></svg>`,
+  rust: `<svg fill="#ce5b4b" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M23.8346 11.7033l-1.0073-.6236a13.7268 13.7268 0 00-.0283-.2936l.8656-.8069a.3483.3483 0 00-.1154-.578l-1.1066-.414a8.4958 8.4958 0 00-.087-.2856l.6904-.9587a.3462.3462 0 00-.2257-.5446l-1.1663-.1894a9.3574 9.3574 0 00-.1407-.2622l.49-1.0761a.3437.3437 0 00-.0274-.3361.3486.3486 0 00-.3006-.154l-1.1845.0416a6.7444 6.7444 0 00-.1873-.2268l.2723-1.153a.3472.3472 0 00-.417-.4172l-1.1532.2724a14.0183 14.0183 0 00-.2278-.1873l.0415-1.1845a.3442.3442 0 00-.49-.328l-1.076.491c-.0872-.0476-.1742-.0952-.2623-.1407l-.1903-1.1673A.3483.3483 0 0016.256.955l-.9597.6905a8.4867 8.4867 0 00-.2855-.086l-.414-1.1066a.3483.3483 0 00-.5781-.1154l-.8069.8666a9.2936 9.2936 0 00-.2936-.0284L12.2946.1683a.3462.3462 0 00-.5892 0l-.6236 1.0073a13.7383 13.7383 0 00-.2936.0284L9.9803.3374a.3462.3462 0 00-.578.1154l-.4141 1.1065c-.0962.0274-.1903.0567-.2855.086L7.744.955a.3483.3483 0 00-.5447.2258L7.009 2.348a9.3574 9.3574 0 00-.2622.1407l-1.0762-.491a.3462.3462 0 00-.49.328l.0416 1.1845a7.9826 7.9826 0 00-.2278.1873L3.8413 3.425a.3472.3472 0 00-.4171.4171l.2713 1.1531c-.0628.075-.1255.1509-.1863.2268l-1.1845-.0415a.3462.3462 0 00-.328.49l.491 1.0761a9.167 9.167 0 00-.1407.2622l-1.1662.1894a.3483.3483 0 00-.2258.5446l.6904.9587a13.303 13.303 0 00-.087.2855l-1.1065.414a.3483.3483 0 00-.1155.5781l.8656.807a9.2936 9.2936 0 00-.0283.2935l-1.0073.6236a.3442.3442 0 000 .5892l1.0073.6236c.008.0982.0182.1964.0283.2936l-.8656.8079a.3462.3462 0 00.1155.578l1.1065.4141c.0273.0962.0567.1914.087.2855l-.6904.9587a.3452.3452 0 00.2268.5447l1.1662.1893c.0456.088.0922.1751.1408.2622l-.491 1.0762a.3462.3462 0 00.328.49l1.1834-.0415c.0618.0769.1235.1528.1873.2277l-.2713 1.1541a.3462.3462 0 00.4171.4161l1.153-.2713c.075.0638.151.1255.2279.1863l-.0415 1.1845a.3442.3442 0 00.49.327l1.0761-.49c.087.0486.1741.0951.2622.1407l.1903 1.1662a.3483.3483 0 00.5447.2268l.9587-.6904a9.299 9.299 0 00.2855.087l.414 1.1066a.3452.3452 0 00.5781.1154l.8079-.8656c.0972.0111.1954.0203.2936.0294l.6236 1.0073a.3472.3472 0 00.5892 0l.6236-1.0073c.0982-.0091.1964-.0183.2936-.0294l.8069.8656a.3483.3483 0 00.578-.1154l.4141-1.1066a8.4626 8.4626 0 00.2855-.087l.9587.6904a.3452.3452 0 00.5447-.2268l.1903-1.1662c.088-.0456.1751-.0931.2622-.1407l1.0762.49a.3472.3472 0 00.49-.327l-.0415-1.1845a6.7267 6.7267 0 00.2267-.1863l1.1531.2713a.3472.3472 0 00.4171-.416l-.2713-1.1542c.0628-.0749.1255-.1508.1863-.2278l1.1845.0415a.3442.3442 0 00.328-.49l-.49-1.076c.0475-.0872.0951-.1742.1407-.2623l1.1662-.1893a.3483.3483 0 00.2258-.5447l-.6904-.9587.087-.2855 1.1066-.414a.3462.3462 0 00.1154-.5781l-.8656-.8079c.0101-.0972.0202-.1954.0283-.2936l1.0073-.6236a.3442.3442 0 000-.5892zm-6.7413 8.3551a.7138.7138 0 01.2986-1.396.714.714 0 11-.2997 1.396zm-.3422-2.3142a.649.649 0 00-.7715.5l-.3573 1.6685c-1.1035.501-2.3285.7795-3.6193.7795a8.7368 8.7368 0 01-3.6951-.814l-.3574-1.6684a.648.648 0 00-.7714-.499l-1.473.3158a8.7216 8.7216 0 01-.7613-.898h7.1676c.081 0 .1356-.0141.1356-.088v-2.536c0-.074-.0536-.0881-.1356-.0881h-2.0966v-1.6077h2.2677c.2065 0 1.1065.0587 1.394 1.2088.0901.3533.2875 1.5044.4232 1.8729.1346.413.6833 1.2381 1.2685 1.2381h3.5716a.7492.7492 0 00.1296-.0131 8.7874 8.7874 0 01-.8119.9526zM6.8369 20.024a.714.714 0 11-.2997-1.396.714.714 0 01.2997 1.396zM4.1177 8.9972a.7137.7137 0 11-1.304.5791.7137.7137 0 011.304-.579zm-.8352 1.9813l1.5347-.6824a.65.65 0 00.33-.8585l-.3158-.7147h1.2432v5.6025H3.5669a8.7753 8.7753 0 01-.2834-3.348zm6.7343-.5437V8.7836h2.9601c.153 0 1.0792.1772 1.0792.8697 0 .575-.7107.7815-1.2948.7815zm10.7574 1.4862c0 .2187-.008.4363-.0243.651h-.9c-.09 0-.1265.0586-.1265.1477v.413c0 .973-.5487 1.1846-1.0296 1.2382-.4576.0517-.9648-.1913-1.0275-.4717-.2704-1.5186-.7198-1.8436-1.4305-2.4034.8817-.5599 1.799-1.386 1.799-2.4915 0-1.1936-.819-1.9458-1.3769-2.3153-.7825-.5163-1.6491-.6195-1.883-.6195H5.4682a8.7651 8.7651 0 014.907-2.7699l1.0974 1.151a.648.648 0 00.9182.0213l1.227-1.1743a8.7753 8.7753 0 016.0044 4.2762l-.8403 1.8982a.652.652 0 00.33.8585l1.6178.7188c.0283.2875.0425.577.0425.8717zm-9.3006-9.5993a.7128.7128 0 11.984 1.0316.7137.7137 0 01-.984-1.0316zm8.3389 6.71a.7107.7107 0 01.9395-.3625.7137.7137 0 11-.9405.3635z"/></svg>`,
+  lua: `<svg fill="#000080" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2.818c-5.07 0-9.18 4.109-9.18 9.18 0 5.068 4.11 9.18 9.18 9.18 5.07 0 9.18-4.111 9.18-9.18 0-5.07-4.11-9.18-9.18-9.18zm-2.487 13.77H5.771v-6.023h.769v5.346h2.974v.677zm4.13 0h-.619v-.67c-.405.57-.811.793-1.446.793-.843 0-1.38-.463-1.38-1.182v-3.271h.686v3c0 .52.347.85.893.85.719 0 1.181-.578 1.181-1.461v-2.389h.686v4.33zM12 6.195c-1.484 0-2.689 1.205-2.689 2.689s1.205 2.688 2.689 2.688 2.688-1.203 2.688-2.688-1.203-2.689-2.688-2.689zm2.041 10.393h.677v.52c-.223.059-.33.074-.471.074-.34 0-.637-.238-.711-.57-.381.406-.918.637-1.471.637-.877 0-1.422-.463-1.422-1.248 0-.527.256-.916.76-1.123.266-.107.414-.141 1.389-.264.545-.066.719-.191.719-.48v-.182c0-.412-.348-.645-.967-.645-.645 0-.957.24-1.016.77h-.693c.041-1 .686-1.404 1.734-1.404 1.066 0 1.627.412 1.627 1.182v2.412c0 .215.133.338.373.338a1.1 1.1 0 00.149-.017z"/><circle cx="21.18" cy="2.818" r="2.689"/></svg>`,
+  js: `<svg fill="#F7DF1E" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M0 0h24v24H0V0zm22.034 18.276c-.175-1.095-.888-2.015-3.003-2.873-.736-.345-1.554-.585-1.797-1.14-.091-.33-.105-.51-.046-.705.15-.646.915-.84 1.515-.66.39.12.75.42.976.9 1.034-.676 1.034-.676 1.755-1.125-.27-.42-.404-.601-.586-.78-.63-.705-1.469-1.065-2.834-1.034l-.705.089c-.676.165-1.32.525-1.71 1.005-1.14 1.291-.811 3.541.569 4.471 1.365 1.02 3.361 1.244 3.616 2.205.24 1.17-.87 1.545-1.966 1.41-.811-.18-1.26-.586-1.755-1.336l-1.83 1.051c.21.48.45.689.81 1.109 1.74 1.756 6.09 1.666 6.871-1.004.029-.09.24-.705.074-1.65l.046.067zm-8.983-7.245h-2.248c0 1.938-.009 3.864-.009 5.805 0 1.232.063 2.363-.138 2.711-.33.689-1.18.601-1.566.48-.396-.196-.597-.466-.83-.855-.063-.105-.11-.196-.127-.196l-1.825 1.125c.305.63.75 1.172 1.324 1.517.855.51 2.004.675 3.207.405.783-.226 1.458-.691 1.811-1.411.51-.93.402-2.07.397-3.346.012-2.054 0-4.109 0-6.179l.004-.056z"/></svg>`
+};
+
+// ============================================================
+//  SHOP - Inventaire des marchands
+// ============================================================
+const SHOP_ITEMS = [
+  { id: 'potion',    icon: '🧪', name: 'Potion de soin',     desc: 'Restaure 10 PV',         price: 12 },
+  { id: 'bigpotion', icon: '💉', name: 'Potion de soin +',   desc: 'Restaure 25 PV',         price: 28 },
+  { id: 'strength',  icon: '💪', name: 'Potion de force',    desc: 'ATK +3 (8 tours)',        price: 22 },
+  { id: 'defense',   icon: '🛡', name: 'Potion de défense',  desc: 'DEF +2 (8 tours)',        price: 18 },
+  { id: 'elixir',    icon: '✨', name: 'Élixir du héros',    desc: 'ATK+2 DEF+1 (10 tours)',  price: 35 },
+  { id: 'map',       icon: '🗺', name: 'Carte du donjon',    desc: 'Révèle tout l\'étage',    price: 30 },
+  { id: 'gem',       icon: '💎', name: 'Gemme de soin',      desc: 'Restaure TOUS les PV',    price: 50 },
+];
+
+// ============================================================
+//  CONSTANTES
+// ============================================================
+const TILE_W = 20, TILE_H = 20;
+const VIEW_W = 40, VIEW_H = 32; // tiles visibles
+const MAP_W = 100, MAP_H = 70;
+const FOV_RADIUS = 9;
+const T_WALL = 0, T_FLOOR = 1;
+
+// ============================================================
+//  ÉTAT DU JEU
+// ============================================================
+let map = [], visible = [], explored = [];
+let player, enemies = [], chests = [];
+let stairs = null;
+let messages = [];
+let gameOver = false, gameWon = false;
+let turnCount = 0;
+let floor = 1;
+let level = 1, xp = 0, xpNext = 5;
+
+const canvas = document.getElementById('game-canvas');
+const ctx = canvas.getContext('2d');
+const msgLog = document.getElementById('message-log');
+
+// Images pour les logos SVG
+const imgCache = {};
+
+function svgToDataUrl(svg) {
+  return 'data:image/svg+xml,' + encodeURIComponent(svg);
+}
+
+function loadImages() {
+  for (const [k, svg] of Object.entries(SVGS)) {
+    const img = new Image();
+    img.src = svgToDataUrl(svg);
+    imgCache[k] = img;
+  }
+}
+
+// ============================================================
+//  MESSAGE LOG
+// ============================================================
+function addMsg(text, cls = '') {
+  messages.push({ text, cls });
+  const el = document.createElement('div');
+  el.className = 'msg' + (cls ? ' msg-' + cls : '');
+  el.textContent = text;
+  msgLog.appendChild(el);
+  msgLog.scrollTop = msgLog.scrollHeight;
+  if (messages.length > 100) {
+    msgLog.removeChild(msgLog.firstChild);
+    messages.shift();
+  }
+}
+
+// ============================================================
+//  GÉNÉRATION DU DONJON
+// ============================================================
+function generateDungeon() {
+  map = [];
+  for (let y = 0; y < MAP_H; y++) {
+    map[y] = [];
+    for (let x = 0; x < MAP_W; x++) {
+      map[y][x] = T_WALL;
+    }
+  }
+
+  visible = Array.from({length: MAP_H}, () => Array(MAP_W).fill(false));
+  explored = Array.from({length: MAP_H}, () => Array(MAP_W).fill(false));
+
+  const rooms = [];
+  const MIN_ROOM = 5, MAX_ROOM = 12;
+  const MIN_SIZE = 4, MAX_SIZE = 8;
+  const MAX_ATTEMPTS = 200;
+  let attempts = 0;
+
+  while (rooms.length < MIN_ROOM && attempts < MAX_ATTEMPTS) {
+    attempts++;
+    const rw = MIN_SIZE + Math.floor(Math.random() * (MAX_SIZE - MIN_SIZE + 1));
+    const rh = MIN_SIZE + Math.floor(Math.random() * (MAX_SIZE - MIN_SIZE + 1));
+    const rx = 1 + Math.floor(Math.random() * (MAP_W - rw - 2));
+    const ry = 1 + Math.floor(Math.random() * (MAP_H - rh - 2));
+
+    let overlap = false;
+    for (const r of rooms) {
+      if (rx < r.x + r.w + 1 && rx + rw + 1 > r.x &&
+          ry < r.y + r.h + 1 && ry + rh + 1 > r.y) {
+        overlap = true;
+        break;
+      }
+    }
+    if (overlap) continue;
+
+    for (let y = ry; y < ry + rh; y++)
+      for (let x = rx; x < rx + rw; x++)
+        map[y][x] = T_FLOOR;
+
+    rooms.push({ x: rx, y: ry, w: rw, h: rh, cx: Math.floor(rx + rw / 2), cy: Math.floor(ry + rh / 2) });
+  }
+
+  // Corridors entre les salles
+  for (let i = 1; i < rooms.length; i++) {
+    const a = rooms[i - 1], b = rooms[i];
+    carveCorridor(a.cx, a.cy, b.cx, b.cy);
+  }
+
+  // Dernière salle reliée à la première
+  if (rooms.length > 2) {
+    const a = rooms[rooms.length - 1], b = rooms[0];
+    carveCorridor(a.cx, a.cy, b.cx, b.cy);
+  }
+
+  // Placement joueur dans la première salle
+  const spawnRoom = rooms[0];
+  player = {
+    x: spawnRoom.cx, y: spawnRoom.cy,
+    hp: 30, maxHp: 30,
+    atk: 3, def: 1,
+    gold: 0,
+    type: 'ruby',
+    buffAtk: 0, buffAtkTurns: 0,
+    buffDef: 0, buffDefTurns: 0
+  };
+
+  // Ennemis hostiles + Marchands
+  enemies = [];
+  const hostileTypes = ['rust', 'js', 'rust', 'js', 'rust'];
+  for (let i = 1; i < rooms.length; i++) {
+    const r = rooms[i];
+    // Marchands Lua : tous les 3e salle (2, 5, 8, ...)
+    if (i % 3 === 2) {
+      const mx = r.x + 1 + Math.floor(Math.random() * (r.w - 2));
+      const my = r.y + 1 + Math.floor(Math.random() * (r.h - 2));
+      if (!(mx === player.x && my === player.y)) {
+        enemies.push(createEnemy('lua', mx, my));
+      }
+      continue;
+    }
+    // Ennemis hostiles
+    const numEnemies = 1 + Math.floor(Math.random() * Math.min(2, Math.ceil(floor / 2)));
+    for (let e = 0; e < numEnemies; e++) {
+      const et = hostileTypes[(i + e) % hostileTypes.length];
+      const ex = r.x + 1 + Math.floor(Math.random() * (r.w - 2));
+      const ey = r.y + 1 + Math.floor(Math.random() * (r.h - 2));
+      if (ex === player.x && ey === player.y) continue;
+      // Ne pas placer sur un marchand
+      if (enemies.some(m => m.merchant && m.x === ex && m.y === ey)) continue;
+      enemies.push(createEnemy(et, ex, ey));
+    }
+  }
+
+  // Coffres
+  chests = [];
+  for (let i = 2; i < rooms.length; i += 2) {
+    if (rooms.length <= i) break;
+    const r = rooms[i];
+    const cx = r.x + 1 + Math.floor(Math.random() * (r.w - 2));
+    const cy = r.y + 1 + Math.floor(Math.random() * (r.h - 2));
+    if (cx === player.x && cy === player.y) continue;
+    const rewards = [
+      { type: 'gold', min: 5, max: 20 },
+      { type: 'potion', min: 1, max: 1 },
+      { type: 'strength', min: 1, max: 1 },
+    ];
+    const reward = rewards[Math.floor(Math.random() * rewards.length)];
+    chests.push({ x: cx, y: cy, opened: false, reward });
+  }
+
+  // Escaliers - dans la dernière salle
+  const lastRoom = rooms[rooms.length - 1];
+  stairs = { x: lastRoom.cx, y: lastRoom.cy };
+}
+
+function createEnemy(type, x, y) {
+  const base = { x, y, type, awake: false, stunTurns: 0 };
+  switch (type) {
+    case 'rust':
+      return { ...base, hp: 20 + floor * 2, maxHp: 20 + floor * 2, atk: 5 + floor, def: 2, speed: 2, moveTimer: 0, label: 'Rust', color: '#ce5b4b' };
+    case 'lua':
+      // Marchand friendly - ne bouge pas, ne combat pas
+      return { ...base, merchant: true, hp: 999, maxHp: 999, atk: 0, def: 0, label: 'Marchand Lua', color: '#2ecc71' };
+    case 'js':
+      return { ...base, hp: 14 + floor * 2, maxHp: 14 + floor * 2, atk: 4 + floor, def: 1, speed: 1, aggroRange: 7, label: 'JS', color: '#d4a017' };
+    default:
+      return { ...base, hp: 10, maxHp: 10, atk: 3, def: 0, speed: 1, label: '?', color: '#888' };
+  }
+}
+
+function isHostile(e) { return e && !e.merchant && e.hp > 0; }
+function getHostiles() { return enemies.filter(isHostile); }
+
+function carveCorridor(x1, y1, x2, y2) {
+  let x = x1, y = y1;
+  while (x !== x2 || y !== y2) {
+    if (x !== x2 && (y === y2 || Math.random() < 0.5)) {
+      x += (x2 > x) ? 1 : -1;
+    } else {
+      y += (y2 > y) ? 1 : -1;
+    }
+    if (x >= 0 && x < MAP_W && y >= 0 && y < MAP_H) {
+      map[y][x] = T_FLOOR;
+      if (x > 0) map[y][x-1] = T_FLOOR;
+      if (x < MAP_W-1) map[y][x+1] = T_FLOOR;
+      if (y > 0) map[y-1][x] = T_FLOOR;
+      if (y < MAP_H-1) map[y+1][x] = T_FLOOR;
+    }
+  }
+}
+
+// ============================================================
+//  FOV - Raycasting simple
+// ============================================================
+function computeFOV() {
+  for (let y = 0; y < MAP_H; y++)
+    for (let x = 0; x < MAP_W; x++)
+      visible[y][x] = false;
+
+  const px = player.x, py = player.y;
+  visible[py][px] = true;
+  explored[py][px] = true;
+
+  // Bresenham raycasting dans un rayon donné
+  for (let dy = -FOV_RADIUS; dy <= FOV_RADIUS; dy++) {
+    for (let dx = -FOV_RADIUS; dx <= FOV_RADIUS; dx++) {
+      if (dx === 0 && dy === 0) continue;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist > FOV_RADIUS + 0.5) continue;
+
+      const tx = px + dx, ty = py + dy;
+      if (tx < 0 || tx >= MAP_W || ty < 0 || ty >= MAP_H) continue;
+
+      const steps = Math.max(Math.abs(dx), Math.abs(dy));
+      let blocked = false;
+      for (let i = 1; i <= steps; i++) {
+        const rx = Math.round(px + dx * i / steps);
+        const ry = Math.round(py + dy * i / steps);
+        if (rx < 0 || rx >= MAP_W || ry < 0 || ry >= MAP_H) break;
+        if (i <= steps) {
+          visible[ry][rx] = true;
+          explored[ry][rx] = true;
+        }
+        if (map[ry][rx] === T_WALL) {
+          blocked = true;
+          break; // ne voit pas au-delà des murs
+        }
+      }
+    }
+  }
+}
+
+// ============================================================
+//  COMBAT
+// ============================================================
+function attackEnemy(enemy) {
+  const dmg = Math.max(1, player.atk + player.buffAtk - enemy.def + Math.floor(Math.random() * 3));
+  enemy.hp -= dmg;
+  addMsg(`⚔ Vous frappez ${enemy.label} pour ${dmg} dégâts! (PV: ${Math.max(0, enemy.hp)}/${enemy.maxHp})`, 'combat');
+  if (enemy.hp <= 0) {
+    const idx = enemies.indexOf(enemy);
+    if (idx !== -1) {
+      enemies.splice(idx, 1);
+      const goldDrop = 3 + Math.floor(Math.random() * 8);
+      player.gold += goldDrop;
+      gainXp(1);
+      addMsg(`💀 ${enemy.label} vaincu! +${goldDrop}💰`, 'loot');
+      if (getHostiles().length === 0) {
+        addMsg('🎉 Tous les ennemis sont vaincus! Descendez aux escaliers (▼) pour le prochain étage!', 'info');
+      }
+    }
+  }
+}
+
+function attackPlayer(enemy) {
+  const dmg = Math.max(1, enemy.atk - (player.def + player.buffDef) + Math.floor(Math.random() * 2));
+  player.hp -= dmg;
+  addMsg(`💥 ${enemy.label} vous frappe pour ${dmg} dégâts!`, 'combat');
+  if (player.hp <= 0) {
+    player.hp = 0;
+    gameOver = true;
+    addMsg('☠ VOUS ÊTES MORT! Appuyez sur R pour recommencer.', 'warning');
+  }
+}
+
+// ============================================================
+//  XP & LEVEL
+// ============================================================
+function gainXp(amount) {
+  xp += amount;
+  while (xp >= xpNext) {
+    xp -= xpNext;
+    level++;
+    xpNext = 5 + level * 3;
+    player.maxHp += 5;
+    player.hp = Math.min(player.hp + 5, player.maxHp);
+    player.atk += 1;
+    player.def += 1;
+    addMsg(`⭐ Niveau ${level}! PV+5 ATK+1 DEF+1`, 'info');
+  }
+}
+
+// ============================================================
+//  CHEST
+// ============================================================
+function openChest(chest) {
+  if (chest.opened) return;
+  chest.opened = true;
+  const r = chest.reward;
+  switch (r.type) {
+    case 'gold': {
+      const amt = r.min + Math.floor(Math.random() * (r.max - r.min + 1));
+      player.gold += amt;
+      addMsg(`💰 Coffre: +${amt} pièces d'or!`, 'loot');
+      break;
+    }
+    case 'potion': {
+      const heal = 10 + Math.floor(Math.random() * 6);
+      player.hp = Math.min(player.hp + heal, player.maxHp);
+      addMsg(`🧪 Potion de soin: +${heal} PV! (${player.hp}/${player.maxHp})`, 'heal');
+      break;
+    }
+    case 'strength': {
+      player.buffAtk += 3;
+      player.buffAtkTurns = 8;
+      addMsg(`💪 Potion de force: ATK+3 pour 8 tours!`, 'loot');
+      break;
+    }
+  }
+}
+
+// ============================================================
+//  IA ENNEMIES
+// ============================================================
+function moveEnemies() {
+  for (const e of enemies) {
+    // Marchands Lua - ne bougent pas
+    if (e.merchant) continue;
+
+    // Rust: lent - agit tous les 2 tours
+    if (e.type === 'rust') {
+      e.moveTimer = (e.moveTimer || 0) + 1;
+      if (e.moveTimer % 2 !== 0) continue;
+    }
+
+    // Les ennemis hostiles se déplacent selon leur vitesse
+    const moves = e.movesPerTurn || 1;
+    for (let m = 0; m < moves; m++) {
+      if (e.hp <= 0) break;
+      if (e.stunTurns > 0) { e.stunTurns--; continue; }
+
+      const dist = Math.abs(e.x - player.x) + Math.abs(e.y - player.y);
+
+      // JS: aggro range
+      if (e.type === 'js') {
+        if (dist > (e.aggroRange || 5)) continue;
+        // JS essaie de garder une distance de 2-3
+        if (dist <= 2) {
+          // Fuir
+          const dx = e.x - player.x, dy = e.y - player.y;
+          const fx = e.x + Math.sign(dx), fy = e.y + Math.sign(dy);
+          if (canMoveTo(fx, fy)) { e.x = fx; e.y = fy; continue; }
+        }
+      }
+
+      // Éveil si le joueur est proche
+      if (dist <= FOV_RADIUS && visible[e.y] && visible[e.y][e.x]) {
+        e.awake = true;
+      }
+      if (!e.awake) continue;
+
+      // Si adjacent → attaque
+      if (dist === 1) {
+        attackPlayer(e);
+        continue;
+      }
+
+      // Pathfinding simple: réduire la distance
+      const dx = Math.sign(player.x - e.x);
+      const dy = Math.sign(player.y - e.y);
+
+      let moved = false;
+      // Tente d'abord le mouvement dans l'axe le plus éloigné
+      if (Math.abs(player.x - e.x) >= Math.abs(player.y - e.y)) {
+        if (dx !== 0 && canMoveTo(e.x + dx, e.y)) { e.x += dx; moved = true; }
+        else if (dy !== 0 && canMoveTo(e.x, e.y + dy)) { e.y += dy; moved = true; }
+      } else {
+        if (dy !== 0 && canMoveTo(e.x, e.y + dy)) { e.y += dy; moved = true; }
+        else if (dx !== 0 && canMoveTo(e.x + dx, e.y)) { e.x += dx; moved = true; }
+      }
+
+      // Alternative si bloqué
+      if (!moved) {
+        const dirs = [[1,0],[-1,0],[0,1],[0,-1]];
+        for (const [ddx, ddy] of dirs.sort(() => Math.random() - 0.5)) {
+          if (canMoveTo(e.x + ddx, e.y + ddy)) {
+            e.x += ddx; e.y += ddy; break;
+          }
+        }
+      }
+    }
+  }
+}
+
+function canMoveTo(x, y) {
+  if (x < 0 || x >= MAP_W || y < 0 || y >= MAP_H) return false;
+  if (map[y][x] === T_WALL) return false;
+  for (const e of enemies) if (e.x === x && e.y === y && e.hp > 0) return false;
+  return true;
+}
+
+function isBlocked(x, y) {
+  if (x < 0 || x >= MAP_W || y < 0 || y >= MAP_H) return true;
+  if (map[y][x] === T_WALL) return true;
+  for (const e of enemies) if (e.x === x && e.y === y && e.hp > 0) return true;
+  return false;
+}
+
+// ============================================================
+//  TOUR DU JOUEUR
+// ============================================================
+function playerTurn(dx, dy) {
+  if (gameOver || gameWon) return;
+
+  const nx = player.x + dx;
+  const ny = player.y + dy;
+  if (nx < 0 || nx >= MAP_W || ny < 0 || ny >= MAP_H) return;
+
+  // Mur
+  if (map[ny][nx] === T_WALL) return;
+
+  // Interdire de couper les coins en diagonale
+  if (dx !== 0 && dy !== 0) {
+    if (map[player.y + dy][player.x] === T_WALL && map[player.y][player.x + dx] === T_WALL) return;
+  }
+
+  // Attaque ennemie (pas les marchands!)
+  const target = enemies.find(e => e.x === nx && e.y === ny && e.hp > 0 && !e.merchant);
+  if (target) {
+    attackEnemy(target);
+    finishTurn();
+    return;
+  }
+
+  // Marchand - afficher message
+  const merchant = enemies.find(e => e.x === nx && e.y === ny && e.merchant);
+  if (merchant) {
+    addMsg('👋 Appuyez sur E pour ouvrir la boutique du Marchand Lua.', 'info');
+    return; // ne consomme pas le tour
+  }
+
+  // Coffre
+  const chest = chests.find(c => c.x === nx && c.y === ny);
+  if (chest && !chest.opened) {
+    player.x = nx;
+    player.y = ny;
+    openChest(chest);
+    finishTurn();
+    return;
+  }
+
+  // Marche
+  player.x = nx;
+  player.y = ny;
+  finishTurn();
+}
+
+function finishTurn() {
+  // Buffs décrément
+  if (player.buffAtkTurns > 0) {
+    player.buffAtkTurns--;
+    if (player.buffAtkTurns === 0) { player.buffAtk = 0; addMsg('💪 Buff de force expiré.', 'info'); }
+  }
+  if (player.buffDefTurns > 0) {
+    player.buffDefTurns--;
+    if (player.buffDefTurns === 0) { player.buffDef = 0; addMsg('🛡 Buff de défense expiré.', 'info'); }
+  }
+
+  turnCount++;
+  moveEnemies();
+  computeFOV();
+  updateUI();
+  render();
+}
+
+// ============================================================
+//  ESCALIERS - Nouvel étage
+// ============================================================
+function goToNextFloor() {
+  if (getHostiles().length > 0) {
+    addMsg('❌ Vainquez tous les ennemis avant de descendre!', 'warning');
+    return;
+  }
+  floor++;
+  addMsg(`🏚 Étage ${floor} - Un nouveau donjon vous attend!`, 'info');
+  generateDungeon();
+  computeFOV();
+  updateUI();
+  render();
+}
+
+// ============================================================
+//  RENDU
+// ============================================================
+function render() {
+  const camX = player.x - Math.floor(VIEW_W / 2);
+  const camY = player.y - Math.floor(VIEW_H / 2);
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Dessiner les tuiles
+  for (let vy = 0; vy < VIEW_H; vy++) {
+    for (let vx = 0; vx < VIEW_W; vx++) {
+      const mx = camX + vx;
+      const my = camY + vy;
+      if (mx < 0 || mx >= MAP_W || my < 0 || my >= MAP_H) {
+        ctx.fillStyle = '#0a0a12';
+        ctx.fillRect(vx * TILE_W, vy * TILE_H, TILE_W, TILE_H);
+        continue;
+      }
+
+      const isVisible = visible[my][mx];
+      const isExplored = explored[my][mx];
+
+      if (!isExplored) {
+        ctx.fillStyle = '#0a0a12';
+        ctx.fillRect(vx * TILE_W, vy * TILE_H, TILE_W, TILE_H);
+        continue;
+      }
+
+      const tile = map[my][mx];
+      if (tile === T_WALL) {
+        ctx.fillStyle = isVisible ? '#3a3a4a' : '#1a1a24';
+        ctx.fillRect(vx * TILE_W, vy * TILE_H, TILE_W, TILE_H);
+        // Texture mur
+        ctx.fillStyle = isVisible ? '#4a4a5a' : '#252530';
+        ctx.fillRect(vx * TILE_W + 2, vy * TILE_H + 2, TILE_W - 4, 2);
+        ctx.fillRect(vx * TILE_W + 2, vy * TILE_H + 2, 2, TILE_H - 4);
+      } else {
+        // Sol
+        const shade = isVisible ? 0 : 0.3;
+        const base = 18 - Math.floor(shade * 15);
+        ctx.fillStyle = `rgb(${base+2},${base},${base+6})`;
+        ctx.fillRect(vx * TILE_W, vy * TILE_H, TILE_W, TILE_H);
+        // Grille subtile
+        ctx.fillStyle = `rgba(60,55,80,${isVisible ? 0.08 : 0.03})`;
+        ctx.fillRect(vx * TILE_W, vy * TILE_H, TILE_W, 1);
+        ctx.fillRect(vx * TILE_W, vy * TILE_H, 1, TILE_H);
+
+        // Éclairage autour du joueur
+        if (isVisible) {
+          const dist = Math.abs(mx - player.x) + Math.abs(my - player.y);
+          const glow = Math.max(0, 1 - dist / (FOV_RADIUS + 2));
+          if (glow > 0.05) {
+            ctx.fillStyle = `rgba(255,220,150,${glow * 0.05})`;
+            ctx.fillRect(vx * TILE_W, vy * TILE_H, TILE_W, TILE_H);
+          }
+        }
+      }
+    }
+  }
+
+  // Coffres
+  for (const c of chests) {
+    const mx = c.x - camX, my = c.y - camY;
+    if (mx < 0 || mx >= VIEW_W || my < 0 || my >= VIEW_H) continue;
+    if (!visible[c.y] || !visible[c.y][c.x]) continue;
+    const alpha = visible[c.y][c.x] ? 1 : 0.4;
+    ctx.globalAlpha = alpha;
+    if (c.opened) {
+      ctx.fillStyle = '#5a3a1a';
+      ctx.fillRect(mx * TILE_W + 4, my * TILE_H + 6, TILE_W - 8, TILE_H - 10);
+      ctx.fillStyle = '#3a2a0a';
+      ctx.fillRect(mx * TILE_W + 6, my * TILE_H + 4, TILE_W - 12, 4);
+    } else {
+      // Coffre fermé
+      ctx.fillStyle = '#8a5a2a';
+      ctx.fillRect(mx * TILE_W + 2, my * TILE_H + 4, TILE_W - 4, TILE_H - 6);
+      ctx.fillStyle = '#c89040';
+      ctx.fillRect(mx * TILE_W + 4, my * TILE_H + 6, TILE_W - 8, 3);
+      ctx.fillStyle = '#f0c060';
+      ctx.fillRect(mx * TILE_W + 7, my * TILE_H + 3, 6, 4);
+      // Cadenas
+      ctx.fillStyle = '#d4a030';
+      ctx.fillRect(mx * TILE_W + 8, my * TILE_H + 7, 4, 5);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  // Ennemis hostiles
+  for (const e of enemies) {
+    if (e.merchant) continue;
+    const mx = e.x - camX, my = e.y - camY;
+    if (mx < 0 || mx >= VIEW_W || my < 0 || my >= VIEW_H) continue;
+    if (!visible[e.y] || !visible[e.y][e.x]) continue;
+    drawSvgLogo(e.type, mx * TILE_W, my * TILE_H, TILE_W, TILE_H, e.hp / e.maxHp, e.label);
+    if (e.hp < e.maxHp) {
+      const bw = TILE_W - 4;
+      ctx.fillStyle = 'rgba(0,0,0,0.6)';
+      ctx.fillRect(mx * TILE_W + 2, my * TILE_H - 3, bw, 3);
+      ctx.fillStyle = e.hp / e.maxHp > 0.5 ? '#2ecc71' : e.hp / e.maxHp > 0.25 ? '#e67e22' : '#e74c3c';
+      ctx.fillRect(mx * TILE_W + 2, my * TILE_H - 3, bw * (e.hp / e.maxHp), 3);
+    }
+  }
+
+  // Marchands Lua
+  for (const e of enemies) {
+    if (!e.merchant) continue;
+    const mx = e.x - camX, my = e.y - camY;
+    if (mx < 0 || mx >= VIEW_W || my < 0 || my >= VIEW_H) continue;
+    if (!visible[e.y] || !visible[e.y][e.x]) continue;
+    drawMerchant(e, mx * TILE_W, my * TILE_H);
+  }
+
+  // Joueur (Ruby)
+  const jx = (player.x - camX) * TILE_W;
+  const jy = (player.y - camY) * TILE_H;
+  drawSvgLogo('ruby', jx, jy, TILE_W, TILE_H, 1, null);
+
+  // Escaliers si tous les hostiles sont morts
+  if (getHostiles().length === 0 && stairs && explored[stairs.y] && explored[stairs.y][stairs.x]) {
+    const sx = stairs.x - camX, sy = stairs.y - camY;
+    if (sx >= 0 && sx < VIEW_W && sy >= 0 && sy < VIEW_H) {
+      const isVis = visible[stairs.y] && visible[stairs.y][stairs.x];
+      ctx.fillStyle = isVis ? '#2ecc71' : '#1a5a3a';
+      ctx.font = 'bold 18px monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('▼', sx * TILE_W + TILE_W/2, sy * TILE_H + TILE_H/2);
+      if (isVis) {
+        ctx.fillStyle = 'rgba(46,204,113,0.15)';
+        ctx.fillRect(sx * TILE_W, sy * TILE_H, TILE_W, TILE_H);
+      }
+    }
+  }
+}
+
+function drawSvgLogo(type, x, y, w, h, hpRatio, label) {
+  const img = imgCache[type];
+  if (img && img.complete && img.naturalWidth > 0) {
+    // Fond circulaire
+    ctx.save();
+    ctx.shadowColor = type === 'ruby' ? 'rgba(204,52,45,0.5)' :
+                      type === 'rust' ? 'rgba(206,91,75,0.4)' :
+                      type === 'lua' ? 'rgba(0,0,128,0.4)' : 'rgba(212,160,23,0.4)';
+    ctx.shadowBlur = 8;
+
+    // Cercle de fond
+    ctx.beginPath();
+    ctx.arc(x + w/2, y + h/2, w/2 - 1, 0, Math.PI * 2);
+    ctx.fillStyle = type === 'ruby' ? 'rgba(204,52,45,0.15)' :
+                    type === 'rust' ? 'rgba(206,91,75,0.15)' :
+                    type === 'lua' ? 'rgba(0,0,128,0.15)' : 'rgba(212,160,23,0.15)';
+    ctx.fill();
+    ctx.shadowBlur = 0;
+
+    // Logo
+    ctx.drawImage(img, x + 2, y + 2, w - 4, h - 4);
+    ctx.restore();
+  } else {
+    // Fallback
+    ctx.fillStyle = type === 'ruby' ? '#CC342D' :
+                    type === 'rust' ? '#ce5b4b' :
+                    type === 'lua' ? '#000080' : '#d4a017';
+    ctx.font = 'bold 14px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(type === 'ruby' ? 'R' : type === 'rust' ? 'R' : type === 'lua' ? 'L' : 'J', x + w/2, y + h/2);
+  }
+
+  if (label && hpRatio < 1) {
+    ctx.fillStyle = `rgba(255,255,255,0.5)`;
+    ctx.font = '6px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(label, x + w/2, y + h + 6);
+  }
+}
+
+function drawMerchant(e, x, y) {
+  const w = TILE_W, h = TILE_H;
+  // Étal de marché
+  ctx.fillStyle = 'rgba(46,204,113,0.12)';
+  ctx.fillRect(x, y, w, h);
+  // Tapis vert
+  ctx.fillStyle = 'rgba(46,204,113,0.25)';
+  ctx.fillRect(x + 2, y + h - 5, w - 4, 4);
+  // Tente
+  ctx.fillStyle = 'rgba(46,204,113,0.2)';
+  ctx.beginPath();
+  ctx.moveTo(x + 2, y + h - 5);
+  ctx.lineTo(x + w/2, y + 1);
+  ctx.lineTo(x + w - 2, y + h - 5);
+  ctx.fill();
+
+  // Logo Lua
+  const img = imgCache['lua'];
+  if (img && img.complete && img.naturalWidth > 0) {
+    ctx.save();
+    ctx.shadowColor = 'rgba(46,204,113,0.6)';
+    ctx.shadowBlur = 10;
+    ctx.drawImage(img, x + 3, y + 2, w - 6, h - 8);
+    ctx.restore();
+  } else {
+    ctx.fillStyle = '#2ecc71';
+    ctx.font = 'bold 12px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('$', x + w/2, y + h/2);
+  }
+
+  // Étiquette "MARCHAND"
+  ctx.fillStyle = 'rgba(46,204,113,0.9)';
+  ctx.font = 'bold 6px monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  ctx.fillText('MARCHAND', x + w/2, y - 1);
+
+  // Icône pièces
+  ctx.fillStyle = '#f1c40f';
+  ctx.font = '8px monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'bottom';
+  ctx.fillText('💰', x + w/2, y + h - 1);
+}
+
+// ============================================================
+//  SHOP FUNCTIONS
+// ============================================================
+let shopBought = {};
+
+function openShop() {
+  const overlay = document.getElementById('shop-overlay');
+  overlay.classList.add('open');
+  renderShop();
+}
+
+function closeShop() {
+  document.getElementById('shop-overlay').classList.remove('open');
+}
+
+function renderShop() {
+  const container = document.getElementById('shop-items');
+  container.innerHTML = '';
+  for (const item of SHOP_ITEMS) {
+    const div = document.createElement('div');
+    const bought = shopBought[item.id] || 0;
+    const canAfford = player.gold >= item.price;
+    const disabled = bought >= 3; // max 3 du même article
+    div.className = 'shop-item' + (disabled ? ' disabled' : '');
+
+    div.innerHTML = `
+      <span class="item-icon">${item.icon}</span>
+      <div class="item-info">
+        <div class="item-name">${item.name}</div>
+        <div class="item-desc">${item.desc}</div>
+      </div>
+      ${disabled ? '<span class="item-bought">✔ Acheté</span>' : `<span class="item-price">${item.price}💰</span>`}
+    `;
+
+    if (!disabled) {
+      div.addEventListener('click', () => buyItem(item));
+      if (!canAfford) div.classList.add('disabled');
+    }
+    container.appendChild(div);
+  }
+}
+
+function buyItem(item) {
+  if (player.gold < item.price) {
+    addMsg('❌ Pas assez d\'or!', 'warning');
+    return;
+  }
+  const bought = shopBought[item.id] || 0;
+  if (bought >= 3) return;
+
+  player.gold -= item.price;
+  shopBought[item.id] = (shopBought[item.id] || 0) + 1;
+
+  switch (item.id) {
+    case 'potion':
+      player.hp = Math.min(player.hp + 10, player.maxHp);
+      addMsg(`🧪 Potion de soin: +10 PV! (${player.hp}/${player.maxHp})`, 'heal');
+      break;
+    case 'bigpotion':
+      player.hp = Math.min(player.hp + 25, player.maxHp);
+      addMsg(`💉 Potion de soin +: +25 PV! (${player.hp}/${player.maxHp})`, 'heal');
+      break;
+    case 'strength':
+      player.buffAtk += 3;
+      player.buffAtkTurns = 8;
+      addMsg('💪 Force +3 pour 8 tours!', 'loot');
+      break;
+    case 'defense':
+      player.buffDef += 2;
+      player.buffDefTurns = 8;
+      addMsg('🛡 Défense +2 pour 8 tours!', 'loot');
+      break;
+    case 'elixir':
+      player.buffAtk += 2;
+      player.buffAtkTurns = 10;
+      player.buffDef += 1;
+      player.buffDefTurns = 10;
+      addMsg('✨ Élixir du héros: ATK+2 DEF+1 pour 10 tours!', 'loot');
+      break;
+    case 'map':
+      for (let y = 0; y < MAP_H; y++)
+        for (let x = 0; x < MAP_W; x++)
+          explored[y][x] = true;
+      computeFOV();
+      addMsg('🗺 Carte du donjon révélée!', 'info');
+      break;
+    case 'gem':
+      player.hp = player.maxHp;
+      addMsg(`💎 Gemme de soin: PV restaurés! (${player.hp}/${player.maxHp})`, 'heal');
+      break;
+  }
+  renderShop();
+  updateUI();
+  render();
+}
+
+document.getElementById('shop-close').addEventListener('click', closeShop);
+
+// Fermer avec Échap
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && document.getElementById('shop-overlay').classList.contains('open')) {
+    closeShop();
+  }
+});
+
+// ============================================================
+//  UI UPDATE
+// ============================================================
+function updateUI() {
+  document.getElementById('stat-hp').textContent = `${player.hp}/${player.maxHp}`;
+  const totalAtk = player.atk + player.buffAtk;
+  const totalDef = player.def + player.buffDef;
+  document.getElementById('stat-atk').textContent = totalAtk + (player.buffAtk > 0 ? ` (+${player.buffAtk})` : '');
+  document.getElementById('stat-def').textContent = totalDef + (player.buffDef > 0 ? ` (+${player.buffDef})` : '');
+  document.getElementById('stat-def').style.color = player.buffDef > 0 ? '#5dade2' : '#3498db';
+  document.getElementById('stat-atk').style.color = player.buffAtk > 0 ? '#f0a030' : '#e67e22';
+  document.getElementById('stat-lvl').textContent = `${level} (${xp}/${xpNext} XP)`;
+  document.getElementById('stat-gold').textContent = player.gold;
+  document.getElementById('stat-floor').textContent = floor;
+  document.getElementById('stat-enemies').textContent = getHostiles().length;
+}
+
+// ============================================================
+//  CONTROLES
+// ============================================================
+const keyMap = {
+  'ArrowUp': [0, -1], 'ArrowDown': [0, 1], 'ArrowLeft': [-1, 0], 'ArrowRight': [1, 0],
+  'w': [0, -1], 's': [0, 1], 'a': [-1, 0], 'd': [1, 0],
+  'W': [0, -1], 'S': [0, 1], 'A': [-1, 0], 'D': [1, 0],
+  '8': [0, -1], '2': [0, 1], '4': [-1, 0], '6': [1, 0],
+  '7': [-1, -1], '9': [1, -1], '1': [-1, 1], '3': [1, 1],
+};
+
+document.addEventListener('keydown', (e) => {
+  const key = e.key;
+
+  if (key === 'r' || key === 'R') {
+    resetGame();
+    return;
+  }
+
+  if (key === ' ' || key === 'Space') {
+    e.preventDefault();
+    if (gameOver || gameWon) return;
+    addMsg('⏳ Vous attendez...', 'info');
+    finishTurn();
+    return;
+  }
+
+  // Escaliers - doit être dessus
+  if (key === 'Enter' || key === '>') {
+    if (getHostiles().length === 0 && stairs && player.x === stairs.x && player.y === stairs.y) {
+      goToNextFloor();
+      return;
+    } else if (getHostiles().length > 0) {
+      addMsg('❌ Vainquez tous les ennemis avant de descendre!', 'warning');
+    }
+  }
+
+  // Marchand - ouvrir boutique (E)
+  if (key === 'e' || key === 'E') {
+    if (document.getElementById('shop-overlay').classList.contains('open')) { closeShop(); return; }
+    const near = enemies.find(e => e.merchant &&
+      Math.abs(e.x - player.x) + Math.abs(e.y - player.y) <= 1);
+    if (near) {
+      openShop();
+    } else {
+      addMsg('❌ Aucun marchand à proximité.', 'warning');
+    }
+    return;
+  }
+
+  const dir = keyMap[key];
+  if (dir) {
+    e.preventDefault();
+    const [dx, dy] = dir;
+    if (gameOver || gameWon) return;
+    playerTurn(dx, dy);
+  }
+});
+
+// ============================================================
+//  RESET
+// ============================================================
+function resetGame() {
+  msgLog.innerHTML = '';
+  messages = [];
+  gameOver = false;
+  gameWon = false;
+  turnCount = 0;
+  floor = 1;
+  level = 1; xp = 0; xpNext = 5;
+  generateDungeon();
+  computeFOV();
+  updateUI();
+  render();
+  addMsg('🗡 Bienvenue dans Code Dungeon! Explorez le donjon, combattez Rust & JS, ouvrez les coffres.', 'info');
+  addMsg('🏪 Les marchands Lua 🟢 vous vendent des objets. Appuyez sur E à côté d\'eux.', 'info');
+  addMsg('💡 Indice: Vainquez tous les ennemis puis allez aux escaliers (▼) pour descendre.', 'info');
+}
+
+// ============================================================
+//  INIT
+// ============================================================
+loadImages();
+// Attendre que les images chargent
+let loadCount = 0;
+for (const img of Object.values(imgCache)) {
+  img.onload = () => { loadCount++; if (loadCount >= 4) startGame(); };
+  img.onerror = () => { loadCount++; if (loadCount >= 4) startGame(); };
+}
+
+function startGame() {
+  resetGame();
+}
+
+// Fallback si onload ne se déclenche pas
+setTimeout(() => {
+  if (!player) startGame();
+}, 500);
+</script>
+</body>
+</html>
