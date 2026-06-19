@@ -118,7 +118,7 @@ body{background:#0a0a12;color:#ccc;font-family:'Courier New',monospace;display:f
     </div>
   </div>
   <div id="message-log"></div>
-  <div id="controls-hint">↑↓← → / WASD / Numpad : déplacer | Espace : attendre | E : marchand | I : inventaire | C : cheat | R : recommencer</div>
+  <div id="controls-hint">↑↓← → / WASD / Numpad : déplacer | Espace : attendre | E : marchand | I : inventaire | C : cheat | Enter/. : escaliers | R : recommencer</div>
 </div>
 
 <!-- Shop Overlay -->
@@ -166,22 +166,22 @@ const SVGS = {
 //  SHOP - Inventaire des marchands
 // ============================================================
 const SHOP_ITEMS = [
-  { id: 'potion',    icon: '🧪', name: 'Potion de soin',     desc: 'Restaure 10 PV',         price: 12 },
-  { id: 'bigpotion', icon: '💉', name: 'Potion de soin +',   desc: 'Restaure 25 PV',         price: 28 },
-  { id: 'strength',  icon: '💪', name: 'Potion de force',    desc: 'ATK +3 (8 tours)',        price: 22 },
-  { id: 'defense',   icon: '🛡', name: 'Potion de défense',  desc: 'DEF +2 (8 tours)',        price: 18 },
-  { id: 'elixir',    icon: '✨', name: 'Élixir du héros',    desc: 'ATK+2 DEF+1 (10 tours)',  price: 35 },
-  { id: 'map',       icon: '🗺', name: 'Carte du donjon',    desc: 'Révèle tout l\'étage',    price: 30 },
-  { id: 'gem',       icon: '💎', name: 'Gemme de soin',      desc: 'Restaure TOUS les PV',    price: 50 },
+  { id: 'potion',    icon: '🧪', name: 'Potion de soin',     desc: 'Restaure 15 PV',         price: 8 },
+  { id: 'bigpotion', icon: '💉', name: 'Potion de soin +',   desc: 'Restaure 30 PV',         price: 20 },
+  { id: 'strength',  icon: '💪', name: 'Potion de force',    desc: 'ATK +3 (8 tours)',        price: 15 },
+  { id: 'defense',   icon: '🛡', name: 'Potion de défense',  desc: 'DEF +2 (8 tours)',        price: 12 },
+  { id: 'elixir',    icon: '✨', name: 'Élixir du héros',    desc: 'ATK+2 DEF+1 (10 tours)',  price: 25 },
+  { id: 'map',       icon: '🗺', name: 'Carte du donjon',    desc: 'Révèle tout l\'étage',    price: 20 },
+  { id: 'gem',       icon: '💎', name: 'Gemme de soin',      desc: 'Restaure TOUS les PV',    price: 35 },
   // Équipement (permanent)
-  { id: 'sword_iron',    icon: '⚔', name: 'Épée en fer',       desc: 'ATK +1 permanent',  price: 30,  equip: 'sword', atkBonus: 1 },
-  { id: 'sword_steel',   icon: '⚔', name: 'Épée en acier',     desc: 'ATK +2 permanent',  price: 60,  equip: 'sword', atkBonus: 2 },
-  { id: 'sword_mythril', icon: '⚔', name: 'Épée en mythril',   desc: 'ATK +3 permanent',  price: 100, equip: 'sword', atkBonus: 3 },
-  { id: 'sword_legend',  icon: '⚔', name: 'Épée légendaire',   desc: 'ATK +5 permanent',  price: 180, equip: 'sword', atkBonus: 5 },
-  { id: 'armor_leather', icon: '🛡', name: 'Armure en cuir',    desc: 'DEF +1 permanent',  price: 25,  equip: 'armor', defBonus: 1 },
-  { id: 'armor_iron',    icon: '🛡', name: 'Armure en fer',     desc: 'DEF +2 permanent',  price: 55,  equip: 'armor', defBonus: 2 },
-  { id: 'armor_steel',   icon: '🛡', name: 'Armure en acier',   desc: 'DEF +3 permanent',  price: 90,  equip: 'armor', defBonus: 3 },
-  { id: 'armor_legend',  icon: '🛡', name: 'Armure légendaire', desc: 'DEF +5 permanent',  price: 160, equip: 'armor', defBonus: 5 },
+  { id: 'sword_iron',    icon: '⚔', name: 'Épée en fer',       desc: 'ATK +1 permanent',  price: 20,  equip: 'sword', atkBonus: 1 },
+  { id: 'sword_steel',   icon: '⚔', name: 'Épée en acier',     desc: 'ATK +2 permanent',  price: 40,  equip: 'sword', atkBonus: 2 },
+  { id: 'sword_mythril', icon: '⚔', name: 'Épée en mythril',   desc: 'ATK +3 permanent',  price: 70,  equip: 'sword', atkBonus: 3 },
+  { id: 'sword_legend',  icon: '⚔', name: 'Épée légendaire',   desc: 'ATK +5 permanent',  price: 120, equip: 'sword', atkBonus: 5 },
+  { id: 'armor_leather', icon: '🛡', name: 'Armure en cuir',    desc: 'DEF +1 permanent',  price: 18,  equip: 'armor', defBonus: 1 },
+  { id: 'armor_iron',    icon: '🛡', name: 'Armure en fer',     desc: 'DEF +2 permanent',  price: 35,  equip: 'armor', defBonus: 2 },
+  { id: 'armor_steel',   icon: '🛡', name: 'Armure en acier',   desc: 'DEF +3 permanent',  price: 60,  equip: 'armor', defBonus: 3 },
+  { id: 'armor_legend',  icon: '🛡', name: 'Armure légendaire', desc: 'DEF +5 permanent',  price: 100, equip: 'armor', defBonus: 5 },
 ];
 
 // ============================================================
@@ -190,7 +190,7 @@ const SHOP_ITEMS = [
 const TILE_W = 24, TILE_H = 24;
 const VIEW_W = 42, VIEW_H = 32; // tiles visibles
 const MAP_W = 100, MAP_H = 70;
-const FOV_RADIUS = 9;
+const FOV_RADIUS = 11;
 const MAX_FLOOR = 25;
 const T_WALL = 0, T_FLOOR = 1;
 
@@ -251,7 +251,7 @@ function addMsg(text, cls = '') {
 // ============================================================
 //  GÉNÉRATION DU DONJON
 // ============================================================
-function generateDungeon() {
+function generateDungeon(resetPlayer) {
   map = [];
   for (let y = 0; y < MAP_H; y++) {
     map[y] = [];
@@ -307,18 +307,27 @@ function generateDungeon() {
 
   // Placement joueur dans la première salle
   const spawnRoom = rooms[0];
-  player = {
-    x: spawnRoom.cx, y: spawnRoom.cy,
-    hp: 30, maxHp: 30,
-    atk: 3, def: 1,
-    swordAtk: 0, armorDef: 0,
-    swordName: null, armorName: null,
-    gold: 0,
-    type: 'ruby',
-    inventory: [],
-    buffAtk: 0, buffAtkTurns: 0,
-    buffDef: 0, buffDefTurns: 0
-  };
+  if (resetPlayer || !player) {
+    player = {
+      x: spawnRoom.cx, y: spawnRoom.cy,
+      hp: 40, maxHp: 40,
+      atk: 5, def: 2,
+      swordAtk: 0, armorDef: 0,
+      swordName: null, armorName: null,
+      gold: 0,
+      type: 'ruby',
+      inventory: [],
+      buffAtk: 0, buffAtkTurns: 0,
+      buffDef: 0, buffDefTurns: 0
+    };
+  } else {
+    player.x = spawnRoom.cx;
+    player.y = spawnRoom.cy;
+    player.buffAtk = 0;
+    player.buffAtkTurns = 0;
+    player.buffDef = 0;
+    player.buffDefTurns = 0;
+  }
 
   // Ennemis hostiles + Marchands
   enemies = [];
@@ -408,26 +417,26 @@ function getAvailableTypes() {
 
 // Nombre d'ennemis par salle (croît avec les étages)
 function getEnemyCount() {
-  if (floor <= 3) return 1 + Math.floor(Math.random() * 2);         // 1-2
-  if (floor <= 6) return 1 + Math.floor(Math.random() * 2);         // 1-2
-  if (floor <= 10) return 1 + Math.floor(Math.random() * 3);        // 1-3
-  if (floor <= 15) return 2 + Math.floor(Math.random() * 3);        // 2-4
-  if (floor <= 20) return 2 + Math.floor(Math.random() * 4);        // 2-5
-  return 3 + Math.floor(Math.random() * 4);                          // 3-6 (étages 21-25)
+  if (floor <= 3) return 1;                                           // 1
+  if (floor <= 6) return 1 + Math.floor(Math.random() * 1);          // 1
+  if (floor <= 10) return 1 + Math.floor(Math.random() * 2);         // 1-2
+  if (floor <= 15) return 1 + Math.floor(Math.random() * 3);         // 1-3
+  if (floor <= 20) return 2 + Math.floor(Math.random() * 3);         // 2-4
+  return 2 + Math.floor(Math.random() * 3);                           // 2-4 (étages 21-25)
 }
 
 function createEnemy(type, x, y) {
   const base = { x, y, type, awake: false, stunTurns: 0 };
   switch (type) {
     case 'rust':
-      return { ...base, hp: 20 + floor * 2, maxHp: 20 + floor * 2, atk: 5 + floor, def: 2, speed: 2, moveTimer: 0, label: 'Rust', color: '#ce5b4b' };
+      return { ...base, hp: 14 + floor * 2, maxHp: 14 + floor * 2, atk: 3 + Math.floor(floor * 0.8), def: 2, speed: 2, moveTimer: 0, label: 'Rust', color: '#ce5b4b' };
     case 'lua':
       // Marchand friendly - ne bouge pas, ne combat pas
       return { ...base, merchant: true, hp: 999, maxHp: 999, atk: 0, def: 0, label: 'Marchand Lua', color: '#2ecc71' };
     case 'js':
-      return { ...base, hp: 14 + floor * 2, maxHp: 14 + floor * 2, atk: 4 + floor, def: 1, speed: 1, aggroRange: 7, label: 'JS', color: '#d4a017' };
+      return { ...base, hp: 10 + floor * 2, maxHp: 10 + floor * 2, atk: 3 + Math.floor(floor * 0.7), def: 1, speed: 1, aggroRange: 7, label: 'JS', color: '#d4a017' };
     case 'python':
-      return { ...base, hp: 16 + floor * 2, maxHp: 16 + floor * 2, atk: 4 + floor, def: 1, speed: 1, aggroRange: 6, label: 'Python', color: '#3776AB' };
+      return { ...base, hp: 12 + floor * 2, maxHp: 12 + floor * 2, atk: 3 + Math.floor(floor * 0.7), def: 1, speed: 1, aggroRange: 6, label: 'Python', color: '#3776AB' };
     default:
       return { ...base, hp: 10, maxHp: 10, atk: 3, def: 0, speed: 1, label: '?', color: '#888' };
   }
@@ -436,13 +445,13 @@ function createEnemy(type, x, y) {
 function createBoss(x, y) {
   const bossTypes = ['python', 'rust', 'js', 'lua', 'ruby'];
   const bt = bossTypes[(floor - 1) % bossTypes.length];
-  const hp = 40 + floor * 5;
+  const hp = 25 + floor * 3;
   return {
     x, y, type: bt, isBoss: true,
     awake: true, stunTurns: 0,
     hp, maxHp: hp,
-    atk: 10 + Math.floor(floor * 1.5),
-    def: 3 + Math.floor(floor / 3),
+    atk: 6 + Math.floor(floor * 1.2),
+    def: 2 + Math.floor(floor / 4),
     speed: 1, moveTimer: 0,
     label: '👑 BOSS', color: '#FFD700',
     aggroRange: 15
@@ -524,14 +533,14 @@ function attackEnemy(enemy) {
     if (idx !== -1) {
       enemies.splice(idx, 1);
       if (enemy.isBoss) {
-        const goldDrop = 20 + Math.floor(Math.random() * 20) + floor * 2;
+        const goldDrop = 30 + Math.floor(Math.random() * 30) + floor * 3;
         player.gold += goldDrop;
-        gainXp(3 + Math.floor(floor / 3));
+        gainXp(5 + Math.floor(floor / 2));
         addMsg(`👑 BOSS vaincu! +${goldDrop}💰 +XP!`, 'loot');
       } else {
-        const goldDrop = 3 + Math.floor(Math.random() * 8);
+        const goldDrop = 5 + Math.floor(Math.random() * 10) + floor;
         player.gold += goldDrop;
-        gainXp(1);
+        gainXp(2);
         addMsg(`💀 ${enemy.label} vaincu! +${goldDrop}💰`, 'loot');
       }
       if (getHostiles().length === 0) {
@@ -561,12 +570,12 @@ function gainXp(amount) {
   while (xp >= xpNext) {
     xp -= xpNext;
     level++;
-    xpNext = 5 + level * 3;
-    player.maxHp += 5;
-    player.hp = Math.min(player.hp + 5, player.maxHp);
-    player.atk += 1;
+    xpNext = 3 + level * 2;
+    player.maxHp += 8;
+    player.hp = Math.min(player.hp + 8, player.maxHp);
+    player.atk += 2;
     player.def += 1;
-    addMsg(`⭐ Niveau ${level}! PV+5 ATK+1 DEF+1`, 'info');
+    addMsg(`⭐ Niveau ${level}! PV+8 ATK+2 DEF+1`, 'info');
   }
 }
 
@@ -1448,12 +1457,16 @@ document.addEventListener('keydown', (e) => {
   }
 
   // Escaliers - doit être dessus
-  if (key === 'Enter' || key === '>') {
+  if (key === 'Enter' || key === 'NumpadEnter' || key === '>' || key === '.') {
     if (getHostiles().length === 0 && stairs && player.x === stairs.x && player.y === stairs.y) {
       goToNextFloor();
       return;
     } else if (getHostiles().length > 0) {
       addMsg('❌ Vainquez tous les ennemis avant de descendre!', 'warning');
+      return;
+    } else {
+      addMsg('❌ Vous n\'êtes pas sur les escaliers (▼). Trouvez la sortie!', 'warning');
+      return;
     }
   }
 
@@ -1519,7 +1532,7 @@ function resetGame() {
   floor = 1;
   level = 1; xp = 0; xpNext = 5;
   shopBought = {};
-  generateDungeon();
+  generateDungeon(true);
   computeFOV();
   updateUI();
   render();
