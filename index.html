@@ -193,12 +193,19 @@ function svgToDataUrl(svg) {
   return 'data:image/svg+xml,' + encodeURIComponent(svg);
 }
 
+let imagesLoaded = 0;
 function loadImages() {
   for (const [k, svg] of Object.entries(SVGS)) {
     const img = new Image();
-    img.src = svgToDataUrl(svg);
     imgCache[k] = img;
+    img.onload = img.onerror = () => {
+      imagesLoaded++;
+      if (imagesLoaded >= Object.keys(SVGS).length) startGame();
+    };
+    img.src = svgToDataUrl(svg);
   }
+  // Fallback si onload ne se déclenche pas
+  setTimeout(() => { if (!player) startGame(); }, 800);
 }
 
 // ============================================================
@@ -1368,22 +1375,8 @@ function resetGame() {
 // ============================================================
 //  INIT
 // ============================================================
+function startGame() { resetGame(); }
 loadImages();
-// Attendre que les images chargent
-let loadCount = 0;
-for (const img of Object.values(imgCache)) {
-  img.onload = () => { loadCount++; if (loadCount >= 5) startGame(); };
-  img.onerror = () => { loadCount++; if (loadCount >= 5) startGame(); };
-}
-
-function startGame() {
-  resetGame();
-}
-
-// Fallback si onload ne se déclenche pas
-setTimeout(() => {
-  if (!player) startGame();
-}, 500);
 </script>
 </body>
 </html>
