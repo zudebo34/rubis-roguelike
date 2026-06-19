@@ -350,8 +350,28 @@ function generateDungeon() {
     chests.push({ x: cx, y: cy, opened: false, reward });
   }
 
-  // Escaliers - dans la dernière salle
+  // Boss - dans la dernière salle (garde les escaliers)
   const lastRoom = rooms[rooms.length - 1];
+  // Placer le boss à côté du centre de la salle
+  const bossOffsets = [[1,0],[0,1],[-1,0],[0,-1],[1,1],[-1,-1]];
+  let bossPlaced = false;
+  for (const [bdx, bdy] of bossOffsets) {
+    const bx = lastRoom.cx + bdx, by = lastRoom.cy + bdy;
+    if (bx > lastRoom.x && bx < lastRoom.x + lastRoom.w - 1 &&
+        by > lastRoom.y && by < lastRoom.y + lastRoom.h - 1 &&
+        !(bx === player.x && by === player.y) &&
+        !enemies.some(e => e.x === bx && e.y === by)) {
+      enemies.push(createBoss(bx, by));
+      bossPlaced = true;
+      break;
+    }
+  }
+  // Fallback: boss directement au centre si aucun offset libre
+  if (!bossPlaced) {
+    enemies.push(createBoss(lastRoom.cx, lastRoom.cy));
+  }
+
+  // Escaliers - dans la dernière salle
   stairs = { x: lastRoom.cx, y: lastRoom.cy };
 }
 
@@ -387,6 +407,22 @@ function createEnemy(type, x, y) {
     default:
       return { ...base, hp: 10, maxHp: 10, atk: 3, def: 0, speed: 1, label: '?', color: '#888' };
   }
+}
+
+function createBoss(x, y) {
+  const bossTypes = ['python', 'rust', 'js', 'lua', 'ruby'];
+  const bt = bossTypes[(floor - 1) % bossTypes.length];
+  const hp = 40 + floor * 5;
+  return {
+    x, y, type: bt, isBoss: true,
+    awake: true, stunTurns: 0,
+    hp, maxHp: hp,
+    atk: 10 + Math.floor(floor * 1.5),
+    def: 3 + Math.floor(floor / 3),
+    speed: 1, moveTimer: 0,
+    label: '👑 BOSS', color: '#FFD700',
+    aggroRange: 15
+  };
 }
 
 function isHostile(e) { return e && !e.merchant && e.hp > 0; }
@@ -457,15 +493,23 @@ function computeFOV() {
 function attackEnemy(enemy) {
   const dmg = Math.max(1, player.atk + player.buffAtk + player.swordAtk - enemy.def + Math.floor(Math.random() * 3));
   enemy.hp -= dmg;
-  addMsg(`⚔ Vous frappez ${enemy.label} pour ${dmg} dégâts! (PV: ${Math.max(0, enemy.hp)}/${enemy.maxHp})`, 'combat');
+  const targetName = enemy.isBoss ? '👑 BOSS' : enemy.label;
+  addMsg(`⚔ Vous frappez ${targetName} pour ${dmg} dégâts! (PV: ${Math.max(0, enemy.hp)}/${enemy.maxHp})`, 'combat');
   if (enemy.hp <= 0) {
     const idx = enemies.indexOf(enemy);
     if (idx !== -1) {
       enemies.splice(idx, 1);
-      const goldDrop = 3 + Math.floor(Math.random() * 8);
-      player.gold += goldDrop;
-      gainXp(1);
-      addMsg(`💀 ${enemy.label} vaincu! +${goldDrop}💰`, 'loot');
+      if (enemy.isBoss) {
+        const goldDrop = 20 + Math.floor(Math.random() * 20) + floor * 2;
+        player.gold += goldDrop;
+        gainXp(3 + Math.floor(floor / 3));
+        addMsg(`👑 BOSS vaincu! +${goldDrop}💰 +XP!`, 'loot');
+      } else {
+        const goldDrop = 3 + Math.floor(Math.random() * 8);
+        player.gold += goldDrop;
+        gainXp(1);
+        addMsg(`💀 ${enemy.label} vaincu! +${goldDrop}💰`, 'loot');
+      }
       if (getHostiles().length === 0) {
         addMsg('🎉 Tous les ennemis sont vaincus! Descendez aux escaliers (▼) pour le prochain étage!', 'info');
       }
@@ -476,7 +520,8 @@ function attackEnemy(enemy) {
 function attackPlayer(enemy) {
   const dmg = Math.max(1, enemy.atk - (player.def + player.buffDef + player.armorDef) + Math.floor(Math.random() * 2));
   player.hp -= dmg;
-  addMsg(`💥 ${enemy.label} vous frappe pour ${dmg} dégâts!`, 'combat');
+  const attackerName = enemy.isBoss ? '👑 BOSS' : enemy.label;
+  addMsg(`💥 ${attackerName} vous frappe pour ${dmg} dégâts!`, 'combat');
   if (player.hp <= 0) {
     player.hp = 0;
     gameOver = true;
@@ -562,8 +607,8 @@ function moveEnemies() {
     // Marchands Lua - ne bougent pas
     if (e.merchant) continue;
 
-    // Rust: lent - agit tous les 2 tours
-    if (e.type === 'rust') {
+    // Rust: lent - agit tous les 2 tours (sauf le boss)
+    if (e.type === 'rust' && !e.isBoss) {
       e.moveTimer = (e.moveTimer || 0) + 1;
       if (e.moveTimer % 2 !== 0) continue;
     }
@@ -576,8 +621,8 @@ function moveEnemies() {
 
       const dist = Math.abs(e.x - player.x) + Math.abs(e.y - player.y);
 
-      // JS: aggro range
-      if (e.type === 'js') {
+      // JS: aggro range (sauf le boss - il fonce)
+      if (e.type === 'js' && !e.isBoss) {
         if (dist > (e.aggroRange || 5)) continue;
         // JS essaie de garder une distance de 2-3
         if (dist <= 2) {
@@ -820,19 +865,43 @@ function render() {
     ctx.globalAlpha = 1;
   }
 
-  // Ennemis hostiles
+  // Ennemis hostiles (dont boss)
   for (const e of enemies) {
     if (e.merchant) continue;
     const mx = e.x - camX, my = e.y - camY;
     if (mx < 0 || mx >= VIEW_W || my < 0 || my >= VIEW_H) continue;
     if (!visible[e.y] || !visible[e.y][e.x]) continue;
-    drawSvgLogo(e.type, mx * TILE_W, my * TILE_H, TILE_W, TILE_H, e.hp / e.maxHp, e.label);
-    if (e.hp < e.maxHp) {
-      const bw = TILE_W - 4;
-      ctx.fillStyle = 'rgba(0,0,0,0.6)';
-      ctx.fillRect(mx * TILE_W + 2, my * TILE_H - 3, bw, 3);
+    if (e.isBoss) {
+      // Aura dorée du boss
+      ctx.save();
+      ctx.shadowColor = 'rgba(255,215,0,0.8)';
+      ctx.shadowBlur = 20;
+      ctx.fillStyle = 'rgba(255,215,0,0.08)';
+      ctx.beginPath();
+      ctx.arc(mx * TILE_W + TILE_W/2, my * TILE_H + TILE_H/2, TILE_W/2 + 2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.restore();
+    }
+    drawSvgLogo(e.type, mx * TILE_W, my * TILE_H, TILE_W, TILE_H, e.hp / e.maxHp, e.isBoss ? e.label : null);
+    // Label boss toujours visible
+    if (e.isBoss) {
+      ctx.fillStyle = 'rgba(255,215,0,0.9)';
+      ctx.font = 'bold 7px monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
+      ctx.fillText('👑 BOSS', mx * TILE_W + TILE_W/2, my * TILE_H + TILE_H);
+    }
+    // Barre de vie (toujours visible pour le boss)
+    if (e.isBoss || e.hp < e.maxHp) {
+      const bw = e.isBoss ? TILE_W - 2 : TILE_W - 4;
+      const bh = e.isBoss ? 4 : 3;
+      const bx = mx * TILE_W + (e.isBoss ? 1 : 2);
+      const by = my * TILE_H - (e.isBoss ? 5 : 3);
+      ctx.fillStyle = 'rgba(0,0,0,0.7)';
+      ctx.fillRect(bx, by, bw, bh);
       ctx.fillStyle = e.hp / e.maxHp > 0.5 ? '#2ecc71' : e.hp / e.maxHp > 0.25 ? '#e67e22' : '#e74c3c';
-      ctx.fillRect(mx * TILE_W + 2, my * TILE_H - 3, bw * (e.hp / e.maxHp), 3);
+      ctx.fillRect(bx, by, bw * (e.hp / e.maxHp), bh);
     }
   }
 
